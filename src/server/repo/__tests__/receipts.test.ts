@@ -26,6 +26,23 @@ function cancelled(codes: string[]) {
   });
 }
 
+// T-018: every receipt write also bumps the CURRENT_SESSION item, and DynamoDB cancels a
+// transaction that meets another one on the same item. Reason order as in the real error:
+// [receipt item, session item]. A probe of 10 parallel writes for one user lost 6 to 8 of 10.
+const conflict = () => cancelled(["None", "TransactionConflict"]);
+
+/** Throws `conflicts` conflicts, then succeeds. */
+function conflictsThenOk(conflicts: number) {
+  let left = conflicts;
+  return stubStore(() => {
+    if (left > 0) {
+      left -= 1;
+      throw conflict();
+    }
+    return {};
+  });
+}
+
 describe("createReceipt", () => {
   it("writes the receipt and bumps the session version in one transaction", async () => {
     const store = stubStore(() => ({}));
@@ -108,6 +125,20 @@ describe("createReceipt", () => {
       throw new Error("ProvisionedThroughputExceeded");
     });
     await expect(createReceipt(store, input, NOW)).rejects.toThrow("ProvisionedThroughputExceeded");
+  });
+
+  it("saves the receipt when the first tries meet another write on the session (T-018)", async () => {
+    const store = conflictsThenOk(2);
+    await expect(createReceipt(store, input, NOW)).resolves.toMatchObject({ created: true });
+  });
+
+  it("still fails when the conflicts do not stop", async () => {
+    const store = stubStore(() => {
+      throw conflict();
+    });
+    await expect(createReceipt(store, input, NOW)).rejects.toMatchObject({
+      name: "TransactionCanceledException"
+    });
   });
 });
 
@@ -217,5 +248,17 @@ describe("processing runs", () => {
     await expect(
       finishAttempt(store, receipt, 1, { status: "failed", error: "E" }, NOW)
     ).resolves.toBe(false);
+  });
+
+  it("starts the run when the first tries meet another write on the session (T-018)", async () => {
+    const { startAttempt } = await import("src/server/repo/receipts");
+    await expect(startAttempt(conflictsThenOk(2), receipt, NOW)).resolves.toBe(1);
+  });
+
+  it("writes the outcome when the first tries meet another write on the session (T-018)", async () => {
+    const { finishAttempt } = await import("src/server/repo/receipts");
+    await expect(
+      finishAttempt(conflictsThenOk(2), receipt, 1, { status: "done", text: "T" }, NOW)
+    ).resolves.toBe(true);
   });
 });

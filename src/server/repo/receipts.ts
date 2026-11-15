@@ -1,7 +1,8 @@
-import { GetCommand, QueryCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
+import { GetCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { cancellationCodes } from "src/server/repo/errors";
 import { CURRENT_SESSION_SK, type Session, userPk } from "src/server/repo/sessions";
 import type { Store } from "src/server/repo/store";
+import { sendTransaction } from "src/server/repo/transact";
 import type { ReceiptStatus } from "src/shared/api-types";
 
 export type Receipt = {
@@ -93,29 +94,27 @@ export async function createReceipt(
     updatedAt: now.toISOString()
   };
   try {
-    await store.db.send(
-      new TransactWriteCommand({
-        TransactItems: [
-          {
-            Put: {
-              TableName: store.tableName,
-              Item: toItem(receipt),
-              ConditionExpression: "attribute_not_exists(PK)"
-            }
-          },
-          {
-            Update: {
-              TableName: store.tableName,
-              Key: { PK: userPk(input.userId), SK: CURRENT_SESSION_SK },
-              UpdateExpression: "SET #version = #version + :one",
-              ConditionExpression: "#sessionId = :sessionId",
-              ExpressionAttributeNames: { "#version": "version", "#sessionId": "sessionId" },
-              ExpressionAttributeValues: { ":one": 1, ":sessionId": input.session.sessionId }
-            }
+    await sendTransaction(store, {
+      TransactItems: [
+        {
+          Put: {
+            TableName: store.tableName,
+            Item: toItem(receipt),
+            ConditionExpression: "attribute_not_exists(PK)"
           }
-        ]
-      })
-    );
+        },
+        {
+          Update: {
+            TableName: store.tableName,
+            Key: { PK: userPk(input.userId), SK: CURRENT_SESSION_SK },
+            UpdateExpression: "SET #version = #version + :one",
+            ConditionExpression: "#sessionId = :sessionId",
+            ExpressionAttributeNames: { "#version": "version", "#sessionId": "sessionId" },
+            ExpressionAttributeValues: { ":one": 1, ":sessionId": input.session.sessionId }
+          }
+        }
+      ]
+    });
     return { receipt, created: true };
   } catch (error) {
     const codes = cancellationCodes(error);
@@ -222,38 +221,36 @@ export async function startAttempt(
 ): Promise<number | undefined> {
   const attempt = receipt.attempts + 1;
   try {
-    await store.db.send(
-      new TransactWriteCommand({
-        TransactItems: [
-          {
-            Update: {
-              TableName: store.tableName,
-              Key: {
-                PK: sessionPk(receipt.sessionId),
-                SK: receiptSk(receipt.createdAt, receipt.receiptId)
-              },
-              UpdateExpression:
-                "SET #status = :processing, #attempts = :attempt, #updatedAt = :now REMOVE #text, #error",
-              ConditionExpression: "#attempts = :previous",
-              ExpressionAttributeNames: {
-                "#status": "status",
-                "#attempts": "attempts",
-                "#updatedAt": "updatedAt",
-                "#text": "text",
-                "#error": "error"
-              },
-              ExpressionAttributeValues: {
-                ":processing": "processing",
-                ":attempt": attempt,
-                ":previous": receipt.attempts,
-                ":now": now.toISOString()
-              }
+    await sendTransaction(store, {
+      TransactItems: [
+        {
+          Update: {
+            TableName: store.tableName,
+            Key: {
+              PK: sessionPk(receipt.sessionId),
+              SK: receiptSk(receipt.createdAt, receipt.receiptId)
+            },
+            UpdateExpression:
+              "SET #status = :processing, #attempts = :attempt, #updatedAt = :now REMOVE #text, #error",
+            ConditionExpression: "#attempts = :previous",
+            ExpressionAttributeNames: {
+              "#status": "status",
+              "#attempts": "attempts",
+              "#updatedAt": "updatedAt",
+              "#text": "text",
+              "#error": "error"
+            },
+            ExpressionAttributeValues: {
+              ":processing": "processing",
+              ":attempt": attempt,
+              ":previous": receipt.attempts,
+              ":now": now.toISOString()
             }
-          },
-          bumpVersion(store, receipt)
-        ]
-      })
-    );
+          }
+        },
+        bumpVersion(store, receipt)
+      ]
+    });
     return attempt;
   } catch (error) {
     const codes = cancellationCodes(error);
@@ -297,32 +294,30 @@ export async function finishAttempt(
     remove.push("#text", "#error");
   }
   try {
-    await store.db.send(
-      new TransactWriteCommand({
-        TransactItems: [
-          {
-            Update: {
-              TableName: store.tableName,
-              Key: {
-                PK: sessionPk(receipt.sessionId),
-                SK: receiptSk(receipt.createdAt, receipt.receiptId)
-              },
-              UpdateExpression: `SET ${set.join(", ")} REMOVE ${remove.join(", ")}`,
-              ConditionExpression: "#attempts = :attempt",
-              ExpressionAttributeNames: {
-                "#status": "status",
-                "#updatedAt": "updatedAt",
-                "#attempts": "attempts",
-                "#text": "text",
-                "#error": "error"
-              },
-              ExpressionAttributeValues: values
-            }
-          },
-          bumpVersion(store, receipt)
-        ]
-      })
-    );
+    await sendTransaction(store, {
+      TransactItems: [
+        {
+          Update: {
+            TableName: store.tableName,
+            Key: {
+              PK: sessionPk(receipt.sessionId),
+              SK: receiptSk(receipt.createdAt, receipt.receiptId)
+            },
+            UpdateExpression: `SET ${set.join(", ")} REMOVE ${remove.join(", ")}`,
+            ConditionExpression: "#attempts = :attempt",
+            ExpressionAttributeNames: {
+              "#status": "status",
+              "#updatedAt": "updatedAt",
+              "#attempts": "attempts",
+              "#text": "text",
+              "#error": "error"
+            },
+            ExpressionAttributeValues: values
+          }
+        },
+        bumpVersion(store, receipt)
+      ]
+    });
     return true;
   } catch (error) {
     // A newer run, or a new session that removed the receipt: this outcome no longer applies.

@@ -71,6 +71,10 @@ Reproduce: a minimal `src/app/layout.tsx` and `page.tsx` with `next@16.4.6`,
 - The fixed rules never fix anything the user's template decides: field order, date style, separators. A fixed example ("2026 年 10 月 1 日") beat the builder's template in 6 of 6 readings.
 - Exact formatting the model cannot hold, such as several spaces, is made exact in code from the template after reading (`src/server/ai/date-style.ts` for the leading date). If more exact-format rules appear, the general fix is for the model to return fields and code to assemble the line; that changes ADR-002 and is the builder's call.
 
+### DynamoDB Transactions (T-018)
+
+- Every `TransactWriteItems` goes through `sendTransaction` (`src/server/repo/transact.ts`). DynamoDB cancels a transaction that meets another one on the same item (`TransactionConflict`), and the SDK does not retry that. Every receipt write bumps `CURRENT_SESSION`, so one batch of photos meets itself there: 10 parallel writes for one user lost 6 to 8 of 10 before the retry, none after (2026-11-15).
+
 ### Browser Rules Found in T-003
 
 - The phone uses the dev server over plain HTTP, which is not a secure context: `crypto.randomUUID` and `navigator.clipboard` do not exist there. IDs come from `src/client/random-id.ts` (`crypto.getRandomValues`).
