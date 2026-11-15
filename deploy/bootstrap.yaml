@@ -6,10 +6,14 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: receipt-pro deployment access for GitHub Actions (OIDC, deploy role, permissions boundary)
 
 Parameters:
+  # GitHub puts owner and repository IDs in the OIDC subject of repositories created after
+  # 2026-07-15 ("immutable subject"), so a deleted and re-created name cannot deploy. The value is
+  # `sub_claim_prefix` of `gh api repos/Jasenpan1987/receipt-pro/actions/oidc/customization/sub`,
+  # without `repo:`. The first deploy failed with the plain owner/name form (2026-11-15).
   GitHubRepository:
     Type: String
-    Default: Jasenpan1987/receipt-pro
-    Description: owner/name of the repository whose workflows may deploy
+    Default: Jasenpan1987@13688927/receipt-pro@1458384092
+    Description: owner@owner-id/name@repo-id of the repository whose workflows may deploy
   GitHubEnvironment:
     Type: String
     Default: production
