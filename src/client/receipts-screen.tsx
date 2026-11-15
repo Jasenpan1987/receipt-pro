@@ -5,6 +5,7 @@ import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { preparePhoto } from "src/client/compress-image";
 import { copyText } from "src/client/copy-text";
 import { startNewSession } from "src/client/new-session";
+import { PhotoViewer } from "src/client/photo-viewer";
 import { processReceipt } from "src/client/process-receipt";
 import { randomId } from "src/client/random-id";
 import { canRegenerate, statusLabel } from "src/client/receipt-labels";
@@ -41,7 +42,7 @@ type Card = {
   createdAt: string;
   /** What the card shows: the small copy, or the photo for receipts from before T-019. */
   imageUrl?: string;
-  /** Opened by a tap on the thumbnail: the full photo. */
+  /** Shown by a tap on the thumbnail: the full photo. */
   photoUrl?: string;
   label: string;
   text?: string;
@@ -71,6 +72,8 @@ export function ReceiptsScreen() {
   const [clearing, setClearing] = useState(false);
   const [addingRule, setAddingRule] = useState(false);
   const [ruleSaved, setRuleSaved] = useState(false);
+  /** The full photo shown over the list, if any. */
+  const [viewing, setViewing] = useState<string>();
   const ruleSavedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const queue = useRef<Promise<void>>(Promise.resolve());
   const pendingRef = useRef<PendingUpload[]>([]);
@@ -325,6 +328,7 @@ export function ReceiptsScreen() {
         </p>
       )}
       {addingRule && <RuleDialog onClose={onRuleDialogClose} />}
+      {viewing && <PhotoViewer url={viewing} onClose={() => setViewing(undefined)} />}
       {sessionReceipts.length >= SESSION_SIZE_PROMPT && (
         <p className={styles.notice}>
           这一批已经有 {sessionReceipts.length} 张小票了。复制完以后，可以点“新
@@ -339,14 +343,15 @@ export function ReceiptsScreen() {
       <ul className={styles.list} aria-live="polite">
         {cards.map(card => (
           <li key={card.receiptId} className={styles.card}>
-            {/* Opens the photo larger in a new tab (S-05 criterion 3). Plain <img>: photos are
+            {/* Shows the photo larger over the list (S-05 criterion 3). Plain <img>: photos are
                 private, behind short-lived presigned URLs, and must not pass through the
                 Next.js image optimizer and its cache. */}
-            <a
+            <button
               className={styles.thumbLink}
-              href={card.photoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+              type="button"
+              aria-label="查看大图"
+              disabled={!card.photoUrl}
+              onClick={() => setViewing(card.photoUrl)}
             >
               {card.imageUrl ? (
                 // oxlint-disable-next-line nextjs/no-img-element
@@ -373,7 +378,7 @@ export function ReceiptsScreen() {
                 // A queued photo before its small copy exists.
                 <span className={styles.thumb} aria-hidden="true" />
               )}
-            </a>
+            </button>
             <div className={styles.body}>
               <p className={card.busy ? `${styles.status} ${styles.busy}` : styles.status}>
                 {card.label}

@@ -133,6 +133,16 @@ Accepted 2026-11-15. Detail and review: `docs/records/completed-work/mvp-m1.md`.
 - **Completion:** Cause, measured on the deployed app as a `smoke-test-` user: each Lambda instance signs photo URLs with its own temporary credentials (8 parallel reads gave 5 URLs for one photo), and every new URL made the browser download and decode the full photo again: with the phone and the Mac open, 10 uploads made the phone download 58 photos, 63 MB, for 12 receipts in 15 s. On the iPhone the full photos (about 12 MB decoded each) and the original-file upload previews (about 48 MB each) most likely exhausted memory; not reproduced on a real iPhone. Fix (builder's choice): the phone makes a 400 px copy at upload from the same decode (`preparePhoto`), stored as `<receiptId>.thumb.jpg` (`thumbKey` on the receipt, `thumbUrl` in the view); the list and the upload preview show it and the link opens the full photo; a card keeps the URL it shows until it fails to load (`src/client/stable-urls.ts`), asking for new URLs at most once a minute per receipt. After the deploy (run `43728904061`), the same 10 uploads: the phone downloaded 14 small copies, 0.70 MB, for 16 receipts, and the Mac 16, 0.79 MB; scrolling through loaded all 16 on the phone, no errors. 176 unit tests (suite total).
 - **Code:** `src/client/compress-image.ts`, `src/client/stable-urls.ts`, `src/client/receipts-screen.tsx`, `src/client/upload-receipt.ts`, `src/server/upload-form.ts`, `src/server/photos.ts`, `src/server/receipt-view.ts`, `src/server/repo/receipts.ts`, `src/app/api/receipts/route.ts`
 
+## Requests From Real Use
+
+### T-020: See the full photo over the list, not in a new tab
+
+- **Type:** feature
+- **Status:** done (2026-11-16)
+- **Requirement:** `docs/work/mvp/requirements.md#s-05-see-receipts-on-every-device` (criterion 3: a thumbnail that can be opened larger)
+- **Completion:** Builder, 2026-11-16: a new tab had to be closed and switched back from. A tap on a thumbnail now shows the full photo in a viewer over the list (`src/client/photo-viewer.tsx`): 90% of the width and 75% of the height on the phone (at most 60 rem wide on the Mac), the whole photo visible, a round close button at the top right. The close button, a tap anywhere but the photo, and Escape close it; a tap on the photo does not; the list does not scroll behind it. Checked in WebKit (iPhone profile) and Chromium on the local production build, with screenshots; one tab throughout, no page errors.
+- **Code:** `src/client/photo-viewer.tsx`, `src/client/photo-viewer.module.css`, `src/client/receipts-screen.tsx`, `src/client/receipts-screen.module.css`
+
 ## Later (not in a milestone)
 
 ### T-016: Reset a forgotten password
