@@ -141,3 +141,15 @@ T-008, but after each other, because both change the receipt list and the receip
 - **Acceptance:** Results in `docs/work/mvp/test-plan.md`; the epic is ready to archive.
 - **Blocked by:** T-014
 - **Notes:** Builder, 2026-11-15: manual edge-case tests on the real phones wait until here, at the end of the MVP. Collected so far: Wi-Fi off mid-upload, then retry (T-003; already covered by browser offline tests in WebKit and Chromium). From T-004 on, tasks are checked on the iPhone only; the Xiaomi checks of those tasks also wait until here (T-003 passed on both phones).
+
+## Later (not in a milestone)
+
+### T-016: Reset a forgotten password
+
+- **Type:** feature
+- **Status:** backlog (deferred by the builder, 2026-11-15)
+- **Requirement:** none yet; S-01 has no reset
+- **Knowledge:** `docs/knowledge/architecture.md#data-model` (the `PROFILE` item holds only a `scrypt` hash)
+- **Code:** `scripts/`, `src/server/repo/users.ts`
+- **Description:** Today a forgotten password cannot be recovered: the hash cannot be reversed, and `scripts/create-user.ts` refuses an account that exists. A reset script, run in the builder's own Terminal, would set a new password hash on the existing `PROFILE` and clear `failedLogins` and `lockedUntil`.
+- **Notes:** Raised in T-006's sitting. Not needed for the MVP.
