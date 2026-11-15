@@ -125,6 +125,16 @@ Accepted 2026-11-15. Detail and review: `docs/records/completed-work/mvp-m1.md`.
 - **Completion:** Cause: `createReceipt`, `startAttempt`, and `finishAttempt` each run a `TransactWriteItems` that also bumps the `CURRENT_SESSION` item, DynamoDB cancels a transaction that meets another one on the same item, and the SDK does not retry it (`attempts: 1` in the error). Reproduced on the real table as a `smoke-test-` user: 10 parallel `createReceipt` calls for one user (`Promise.allSettled`), 3 rounds: 4, 3, and 2 of 10 saved, every failure `None/TransactionConflict`. Fix: `sendTransaction` (`src/server/repo/transact.ts`) sends the transaction again, up to 5 tries with a short random wait, when the only reason is a conflict; a failed condition still returns at once. After the fix: 10 of 10 in 3 rounds and 20 of 20 in 2 rounds. 158 unit tests (suite total), four new ones for the retry.
 - **Code:** `src/server/repo/transact.ts`, `src/server/repo/receipts.ts`, `src/server/repo/__tests__/receipts.test.ts`
 
+### T-019: On Lambda, every session change downloads all thumbnails again
+
+- **Type:** bug
+- **Status:** in-progress (builder, 2026-11-16: keep a working photo URL on the page, and small thumbnails made at upload; the receipt item gains `thumbKey`)
+- **Found in:** T-013, 2026-11-15, the builder's first use of the deployed app: in the builder's existing session, 新 session, 拍照, and 从相册选 stopped responding; after a new session the page worked again. The old session's data is gone, so the freeze itself was not reproduced.
+- **Reproduce:** as a `smoke-test-` user on the deployed app, 8 parallel `GET /api/session` returned 5 different presigned URLs for one photo: each Lambda instance signs with its own temporary credentials, so the "same URL for an hour" in `src/server/photos.ts` (T-003) holds only for one process. With the phone page (WebKit, iPhone profile) and the Mac page (Chromium) open, uploading 10 photos made the phone download 58 photos, 63 MB, for 12 receipts in 15 seconds, and the Mac 31 photos, 33 MB. No image error and no long main-thread block in WebKit on the Mac (max 131 ms), which has far more memory than an iPhone.
+- **Likely cause of the freeze (not proven):** memory and decoding pressure on the iPhone. Each thumbnail is the full 2048 px photo (about 12 MB decoded), every changed poll re-downloads and re-decodes the visible ones, and upload previews are the original camera photos (`URL.createObjectURL(file)` in `src/client/receipts-screen.tsx`, about 48 MB decoded each).
+- **Expected:** a photo is downloaded once per page while its URL works; the page stays responsive through an evening's batch on the iPhone.
+- **Code:** `src/server/photos.ts`, `src/client/receipts-screen.tsx`, `src/client/use-session-poll.ts`
+
 ## Later (not in a milestone)
 
 ### T-016: Reset a forgotten password

@@ -1,5 +1,5 @@
 import { createAwsClients } from "src/server/aws";
-import { photoKey, photoUrl } from "src/server/photos";
+import { photoKey, photoUrl, thumbKey } from "src/server/photos";
 
 const config = {
   profile: "receipt-pro",
@@ -22,6 +22,11 @@ function offlineS3() {
 describe("photoKey", () => {
   it("groups photos by user and session", () => {
     expect(photoKey("u-1", "s-1", "r-1")).toBe("photos/u-1/s-1/r-1.jpg");
+  });
+
+  // A new session deletes the session's prefix (S-06 criterion 3), small copies included.
+  it("keeps the small copy under the same session prefix (T-019)", () => {
+    expect(thumbKey("u-1", "s-1", "r-1")).toBe("photos/u-1/s-1/r-1.thumb.jpg");
   });
 });
 

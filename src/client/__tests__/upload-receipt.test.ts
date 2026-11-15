@@ -30,6 +30,18 @@ describe("uploadReceipt", () => {
     expect(form.get("photo")).toBeInstanceOf(Blob);
   });
 
+  it("sends the small copy too when there is one (T-019)", async () => {
+    const fetch = vi.fn(async () =>
+      Response.json({ receipt: { receiptId: input.receiptId } }, { status: 201 })
+    );
+    vi.stubGlobal("fetch", fetch);
+    const thumb = new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: "image/jpeg" });
+
+    await uploadReceipt({ ...input, thumb });
+    const form = (fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as FormData;
+    expect(form.get("thumb")).toBeInstanceOf(Blob);
+  });
+
   // Acceptance: Wi-Fi off mid-upload shows a plain message and the retry button.
   it("turns a network failure or timeout into a plain message", async () => {
     vi.stubGlobal(

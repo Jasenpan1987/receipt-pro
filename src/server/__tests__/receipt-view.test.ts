@@ -32,6 +32,27 @@ const receipt = (
 });
 
 describe("toReceiptView", () => {
+  it("signs the small copy for the list when the receipt has one (T-019)", async () => {
+    const view = await toReceiptView(
+      receipt("done", NOW.toISOString(), { thumbKey: "photos/u-1/s-1/r-1.thumb.jpg", text: "T" }),
+      s3,
+      config.bucketName,
+      NOW
+    );
+    expect(new URL(view.thumbUrl ?? "").pathname).toBe("/photos/u-1/s-1/r-1.thumb.jpg");
+    expect(new URL(view.photoUrl).pathname).toBe("/photos/u-1/s-1/r-1.jpg");
+  });
+
+  it("has no small copy for a receipt from before T-019", async () => {
+    const view = await toReceiptView(
+      receipt("done", NOW.toISOString()),
+      s3,
+      config.bucketName,
+      NOW
+    );
+    expect(view.thumbUrl).toBeUndefined();
+  });
+
   it("shows a receipt that is still being processed", async () => {
     const view = await toReceiptView(
       receipt("processing", "2026-11-15T09:58:30.000Z"),

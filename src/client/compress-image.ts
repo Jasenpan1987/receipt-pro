@@ -4,6 +4,13 @@
 export const MAX_SIDE = 2048;
 const JPEG_QUALITY = 0.85;
 
+/**
+ * The list's small copy (T-019): the card is 72 × 96 CSS px, 216 × 288 device px on a 3× phone.
+ * A full 2048 px photo is about 12 MB once decoded; this is under 1 MB.
+ */
+export const THUMB_SIDE = 400;
+const THUMB_QUALITY = 0.75;
+
 /** The photo could not be decoded by this browser (for example HEIF on Android Chrome). */
 export class ImageDecodeError extends Error {
   override name = "ImageDecodeError";
@@ -50,9 +57,9 @@ async function decode(file: Blob): Promise<Decoded> {
   }
 }
 
-export async function compressImage(file: Blob): Promise<Blob> {
-  const decoded = await decode(file);
-  const { width, height } = fitWithin(decoded.width, decoded.height);
+/** Draws the decoded photo to fit `max` and encodes it as JPEG. */
+async function encode(decoded: Decoded, max: number, quality: number): Promise<Blob> {
+  const { width, height } = fitWithin(decoded.width, decoded.height, max);
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
@@ -63,16 +70,30 @@ export async function compressImage(file: Blob): Promise<Blob> {
     }
     context.drawImage(decoded.source, 0, 0, width, height);
     const blob = await new Promise<Blob | null>(resolve =>
-      canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY)
+      canvas.toBlob(resolve, "image/jpeg", quality)
     );
     if (!blob) {
       throw new ImageDecodeError("The canvas produced no JPEG.");
     }
     return blob;
   } finally {
-    decoded.release();
     // iOS keeps canvas memory until the size is reset; a batch of photos would otherwise add up.
     canvas.width = 0;
     canvas.height = 0;
+  }
+}
+
+/**
+ * The upload's photo (longest side 2048) and the list's small copy, from one decode of the
+ * original. The original, about 48 MB decoded for a 12 MP camera photo, is released at once.
+ */
+export async function preparePhoto(file: Blob): Promise<{ photo: Blob; thumb: Blob }> {
+  const decoded = await decode(file);
+  try {
+    const photo = await encode(decoded, MAX_SIDE, JPEG_QUALITY);
+    const thumb = await encode(decoded, THUMB_SIDE, THUMB_QUALITY);
+    return { photo, thumb };
+  } finally {
+    decoded.release();
   }
 }

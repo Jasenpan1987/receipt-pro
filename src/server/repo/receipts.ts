@@ -11,6 +11,8 @@ export type Receipt = {
   /** From the item's PK; not stored as an attribute. */
   sessionId: string;
   photoKey: string;
+  /** The small copy for the list; absent on receipts uploaded before T-019. */
+  thumbKey?: string;
   status: ReceiptStatus;
   text?: string;
   error?: string;
@@ -25,6 +27,7 @@ export type NewReceipt = {
   receiptId: string;
   createdAt: string;
   photoKey: string;
+  thumbKey?: string;
 };
 
 /** The current session was replaced (T-010) between reading it and saving the receipt. */
@@ -53,6 +56,7 @@ function fromItem(item: Record<string, any>): Receipt {
     userId: item.userId,
     sessionId: String(item.PK).slice(SESSION_PREFIX.length),
     photoKey: item.photoKey,
+    thumbKey: item.thumbKey,
     status: item.status,
     text: item.text,
     error: item.error,
@@ -88,6 +92,7 @@ export async function createReceipt(
     userId: input.userId,
     sessionId: input.session.sessionId,
     photoKey: input.photoKey,
+    thumbKey: input.thumbKey,
     status: "processing",
     attempts: 0,
     createdAt: input.createdAt,

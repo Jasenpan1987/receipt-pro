@@ -79,7 +79,8 @@ Reproduce: a minimal `src/app/layout.tsx` and `page.tsx` with `next@16.4.6`,
 
 - The phone uses the dev server over plain HTTP, which is not a secure context: `crypto.randomUUID` and `navigator.clipboard` do not exist there. IDs come from `src/client/random-id.ts` (`crypto.getRandomValues`).
 - Photos are re-encoded in the browser (`src/client/compress-image.ts`) with `createImageBitmap(file, { imageOrientation: "from-image" })`, falling back to `<img>` decoding. Checked 2026-11-15 on an iPhone and a Xiaomi phone: camera and library photos arrive as JPEG, 1536×2048, portrait kept, 0.4–1.3 MB.
-- Photos are shown with a plain `<img>` and presigned URLs, never through the Next.js image optimizer, which would cache private photos. `src/server/photos.ts` signs as of the start of the hour for two hours, so a photo's URL stays the same for an hour and polling does not re-download it.
+- Photos are shown with a plain `<img>` and presigned URLs, never through the Next.js image optimizer, which would cache private photos. `src/server/photos.ts` signs as of the start of the hour for two hours. With one set of credentials the URL stays the same for an hour; on Lambda each instance signs differently (8 reads gave 5 URLs for one photo), so the page keeps the URL it shows until it fails to load (`src/client/stable-urls.ts`, T-019). Never let a new URL replace a working one: each new `src` downloads and decodes the photo again.
+- The list shows a 400 px copy made at upload, never the full photo, and the upload preview is that copy, never the original file. On the iPhone a 12 MP original is about 48 MB decoded and a 2048 px photo about 12 MB; a batch of them froze the page (T-019).
 - Testing on the phone: `docs/runbooks/phone-test.md`.
 
 ### What We Don't Use

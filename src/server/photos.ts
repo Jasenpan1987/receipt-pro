@@ -13,6 +13,11 @@ export function photoKey(userId: string, sessionId: string, receiptId: string): 
   return `photos/${userId}/${sessionId}/${receiptId}.jpg`;
 }
 
+/** The small copy the list shows (T-019). Same prefix, so a new session deletes it too. */
+export function thumbKey(userId: string, sessionId: string, receiptId: string): string {
+  return `photos/${userId}/${sessionId}/${receiptId}.thumb.jpg`;
+}
+
 /** The stored JPEG, as sent to DeepSeek. */
 export async function getPhoto(s3: S3Client, bucket: string, key: string): Promise<Uint8Array> {
   const { Body } = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
@@ -35,9 +40,11 @@ export async function putPhoto(
 }
 
 /**
- * A presigned GET URL, signed as of the start of the current hour and valid for two hours. The
- * URL for one photo is then identical for a whole hour, so the browser keeps its cached copy
- * while the page polls (T-005), and it is always valid for at least one more hour.
+ * A presigned GET URL, signed as of the start of the current hour and valid for two hours, so it
+ * is always valid for at least one more hour. With one set of credentials, the URL for one photo
+ * is identical for the whole hour. On Lambda every instance has its own temporary credentials, so
+ * the URL differs by instance (T-019); the page keeps the URL it already shows
+ * (`src/client/stable-urls.ts`).
  */
 export function photoUrl(
   s3: S3Client,

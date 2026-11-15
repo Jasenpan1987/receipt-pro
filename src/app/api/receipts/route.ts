@@ -2,7 +2,7 @@ import { getAws } from "src/server/aws";
 import { getAwsConfig } from "src/server/config";
 import { errorResponse } from "src/server/http";
 import { requireUser } from "src/server/identity";
-import { photoKey, putPhoto } from "src/server/photos";
+import { photoKey, putPhoto, thumbKey } from "src/server/photos";
 import { toReceiptView } from "src/server/receipt-view";
 import { createReceipt } from "src/server/repo/receipts";
 import { getOrCreateCurrentSession } from "src/server/repo/sessions";
@@ -32,20 +32,25 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const { receiptId, createdAt, photo } = parsed.value;
+    const { receiptId, createdAt, photo, thumb } = parsed.value;
     const store = getStore();
     const { s3 } = getAws();
     const { bucketName } = getAwsConfig();
 
     const session = await getOrCreateCurrentSession(store, userId);
     const key = photoKey(userId, session.sessionId, receiptId);
-    await putPhoto(s3, bucketName, key, photo);
+    const smallKey = thumb ? thumbKey(userId, session.sessionId, receiptId) : undefined;
+    await Promise.all([
+      putPhoto(s3, bucketName, key, photo),
+      thumb && smallKey ? putPhoto(s3, bucketName, smallKey, thumb) : undefined
+    ]);
     const { receipt, created } = await createReceipt(store, {
       userId,
       session,
       receiptId,
       createdAt,
-      photoKey: key
+      photoKey: key,
+      thumbKey: smallKey
     });
 
     const body: CreateReceiptResponse = { receipt: await toReceiptView(receipt, s3, bucketName) };

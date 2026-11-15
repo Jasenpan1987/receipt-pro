@@ -9,6 +9,8 @@ export type ReceiptView = {
   error?: string;
   /** Short-lived presigned URL; the bucket is never public. */
   photoUrl: string;
+  /** The small copy for the list (T-019); absent on receipts uploaded before it. */
+  thumbUrl?: string;
   createdAt: string;
   /** Processing runs started so far; 2 or more while `processing` means regenerating. */
   attempts: number;

@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
-import { compressImage } from "src/client/compress-image";
+import { preparePhoto } from "src/client/compress-image";
 import { copyText } from "src/client/copy-text";
 import { startNewSession } from "src/client/new-session";
 import { processReceipt } from "src/client/process-receipt";
 import { randomId } from "src/client/random-id";
 import { canRegenerate, statusLabel } from "src/client/receipt-labels";
 import { RuleDialog } from "src/client/rule-dialog";
+import { StableUrls } from "src/client/stable-urls";
 import { UploadError, uploadReceipt } from "src/client/upload-receipt";
 import { useSessionPoll } from "src/client/use-session-poll";
 import type { ReceiptView } from "src/shared/api-types";
@@ -20,10 +21,15 @@ import styles from "./receipts-screen.module.css";
 type PendingUpload = {
   receiptId: string;
   createdAt: string;
-  previewUrl: string;
+  /**
+   * The small copy, once made. Never the original file: a 12 MP camera photo is about 48 MB
+   * decoded, and a batch of them froze the iPhone (T-019).
+   */
+  previewUrl?: string;
   file: File;
-  /** The re-encoded JPEG, kept so a retry sends the same bytes without re-encoding. */
+  /** The re-encoded JPEG and its small copy, kept so a retry sends the same bytes. */
   photo?: Blob;
+  thumb?: Blob;
   state: "uploading" | "failed";
   message?: string;
   /** False when the photo itself cannot be read: retrying would fail the same way. */
@@ -33,7 +39,10 @@ type PendingUpload = {
 type Card = {
   receiptId: string;
   createdAt: string;
-  photoUrl: string;
+  /** What the card shows: the small copy, or the photo for receipts from before T-019. */
+  imageUrl?: string;
+  /** Opened by a tap on the thumbnail: the full photo. */
+  photoUrl?: string;
   label: string;
   text?: string;
   detail?: string;
@@ -66,6 +75,7 @@ export function ReceiptsScreen() {
   const queue = useRef<Promise<void>>(Promise.resolve());
   const pendingRef = useRef<PendingUpload[]>([]);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const stableUrls = useRef(new StableUrls());
 
   useEffect(() => {
     pendingRef.current = pending;
@@ -75,7 +85,9 @@ export function ReceiptsScreen() {
   useEffect(
     () => () => {
       for (const item of pendingRef.current) {
-        URL.revokeObjectURL(item.previewUrl);
+        if (item.previewUrl) {
+          URL.revokeObjectURL(item.previewUrl);
+        }
       }
       clearTimeout(copiedTimer.current);
       clearTimeout(ruleSavedTimer.current);
@@ -103,9 +115,13 @@ export function ReceiptsScreen() {
   async function send(item: PendingUpload) {
     patch(item.receiptId, { state: "uploading", message: undefined });
 
-    let photo = item.photo;
+    let { photo, thumb, previewUrl } = item;
     try {
-      photo ??= await compressImage(item.file);
+      if (!photo) {
+        ({ photo, thumb } = await preparePhoto(item.file));
+        previewUrl = URL.createObjectURL(thumb);
+        patch(item.receiptId, { photo, thumb, previewUrl });
+      }
     } catch {
       patch(item.receiptId, {
         state: "failed",
@@ -118,12 +134,15 @@ export function ReceiptsScreen() {
     try {
       const receipt = await uploadReceipt({
         photo,
+        thumb,
         receiptId: item.receiptId,
         createdAt: item.createdAt
       });
       setRecent(list => [receipt, ...list.filter(r => r.receiptId !== receipt.receiptId)]);
       setPending(list => list.filter(p => p.receiptId !== item.receiptId));
-      URL.revokeObjectURL(item.previewUrl);
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
       refresh();
       // Not part of the upload queue: the next photo uploads while this one is read.
       void processReceipt(receipt.receiptId).then(() => refresh());
@@ -131,6 +150,7 @@ export function ReceiptsScreen() {
       patch(item.receiptId, {
         state: "failed",
         photo,
+        thumb,
         retryable: true,
         message: error instanceof UploadError ? error.message : "上传失败，请重试。"
       });
@@ -151,7 +171,6 @@ export function ReceiptsScreen() {
     const items: PendingUpload[] = files.map((file, index) => ({
       receiptId: randomId(),
       createdAt: new Date(start + index).toISOString(),
-      previewUrl: URL.createObjectURL(file),
       file,
       state: "uploading",
       retryable: true
@@ -218,7 +237,7 @@ export function ReceiptsScreen() {
     ...pending.map(item => ({
       receiptId: item.receiptId,
       createdAt: item.createdAt,
-      photoUrl: item.previewUrl,
+      imageUrl: item.previewUrl,
       label: item.state === "uploading" ? "上传中…" : "上传失败",
       detail: item.message,
       retry: item.state === "failed" && item.retryable ? item : undefined,
@@ -231,6 +250,7 @@ export function ReceiptsScreen() {
       .map(receipt => ({
         receiptId: receipt.receiptId,
         createdAt: receipt.createdAt,
+        imageUrl: stableUrls.current.get(receipt.receiptId, receipt.thumbUrl ?? receipt.photoUrl),
         photoUrl: receipt.photoUrl,
         label: regenerating.has(receipt.receiptId) ? "重新生成中…" : statusLabel(receipt),
         text:
@@ -328,17 +348,31 @@ export function ReceiptsScreen() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              {/* oxlint-disable-next-line nextjs/no-img-element */}
-              <img
-                className={styles.thumb}
-                src={card.photoUrl}
-                alt="小票照片"
-                // Full-size photos: only decode the ones on screen.
-                loading="lazy"
-                decoding="async"
-                // An expired or broken photo URL: ask for the whole session, which signs new ones.
-                onError={card.stored ? () => refresh(true) : undefined}
-              />
+              {card.imageUrl ? (
+                // oxlint-disable-next-line nextjs/no-img-element
+                <img
+                  className={styles.thumb}
+                  src={card.imageUrl}
+                  alt="小票照片"
+                  // Receipts from before T-019 show the full photo: only decode the ones on screen.
+                  loading="lazy"
+                  decoding="async"
+                  // An expired or broken URL: take the newest one, and ask for the whole session,
+                  // which signs new ones (at most once a minute per receipt).
+                  onError={
+                    card.stored
+                      ? () => {
+                          if (stableUrls.current.failed(card.receiptId)) {
+                            refresh(true);
+                          }
+                        }
+                      : undefined
+                  }
+                />
+              ) : (
+                // A queued photo before its small copy exists.
+                <span className={styles.thumb} aria-hidden="true" />
+              )}
             </a>
             <div className={styles.body}>
               <p className={card.busy ? `${styles.status} ${styles.busy}` : styles.status}>

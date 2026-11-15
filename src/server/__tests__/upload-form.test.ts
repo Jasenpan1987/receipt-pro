@@ -1,13 +1,16 @@
-import { MAX_PHOTO_BYTES, parseUploadForm } from "src/server/upload-form";
+import { MAX_PHOTO_BYTES, MAX_THUMB_BYTES, parseUploadForm } from "src/server/upload-form";
 
 const NOW = new Date("2026-11-15T10:00:00.000Z");
 const RECEIPT_ID = "3f2b8c1e-9a4d-4b6f-8e2a-1c5d7e9f0a3b";
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
 
-function form(fields: { photo?: Blob; receiptId?: string; createdAt?: string }) {
+function form(fields: { photo?: Blob; thumb?: Blob; receiptId?: string; createdAt?: string }) {
   const data = new FormData();
   if (fields.photo) {
     data.append("photo", fields.photo, "receipt.jpg");
+  }
+  if (fields.thumb) {
+    data.append("thumb", fields.thumb, "receipt.thumb.jpg");
   }
   if (fields.receiptId !== undefined) {
     data.append("receiptId", fields.receiptId);
@@ -22,6 +25,36 @@ const valid = () => ({
   photo: new Blob([JPEG], { type: "image/jpeg" }),
   receiptId: RECEIPT_ID,
   createdAt: "2026-11-15T09:59:58.123Z"
+});
+
+describe("parseUploadForm: the small copy (T-019)", () => {
+  it("accepts a small JPEG copy with the photo", async () => {
+    const thumb = new Uint8Array([0xff, 0xd8, 0xff, 0xdb]);
+    const result = await parseUploadForm(
+      form({ ...valid(), thumb: new Blob([thumb], { type: "image/jpeg" }) }),
+      NOW
+    );
+    expect(result).toMatchObject({ ok: true, value: { thumb } });
+  });
+
+  // A page opened before T-019 uploads without one; the list then shows the photo.
+  it("accepts a photo without a small copy", async () => {
+    const result = await parseUploadForm(form(valid()), NOW);
+    expect(result.ok && result.value.thumb).toBeUndefined();
+  });
+
+  it("refuses a small copy that is not JPEG or too big", async () => {
+    const png = new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47])]);
+    const big = new Blob([JPEG, new Uint8Array(MAX_THUMB_BYTES)]);
+    expect(await parseUploadForm(form({ ...valid(), thumb: png }), NOW)).toMatchObject({
+      ok: false,
+      status: 415
+    });
+    expect(await parseUploadForm(form({ ...valid(), thumb: big }), NOW)).toMatchObject({
+      ok: false,
+      status: 400
+    });
+  });
 });
 
 describe("parseUploadForm", () => {

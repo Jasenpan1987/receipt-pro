@@ -8,7 +8,7 @@ export class UploadError extends Error {
   override name = "UploadError";
 }
 
-export type UploadInput = { photo: Blob; receiptId: string; createdAt: string };
+export type UploadInput = { photo: Blob; thumb?: Blob; receiptId: string; createdAt: string };
 
 /** Safe to call again with the same input: the server returns the receipt it already has. */
 export async function uploadReceipt(
@@ -17,6 +17,9 @@ export async function uploadReceipt(
 ): Promise<ReceiptView> {
   const form = new FormData();
   form.append("photo", input.photo, `${input.receiptId}.jpg`);
+  if (input.thumb) {
+    form.append("thumb", input.thumb, `${input.receiptId}.thumb.jpg`);
+  }
   form.append("receiptId", input.receiptId);
   form.append("createdAt", input.createdAt);
 

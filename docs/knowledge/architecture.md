@@ -55,7 +55,7 @@ arrive without a data migration.
 | --------------- | -------------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Current session | `USER#<userId>`                  | `CURRENT_SESSION`                     | `sessionId`, `version` (number, incremented on every receipt change), `createdAt`, `previousSessionId` (the session it replaced, whose cleanup the next new session retries)                        |
 | Settings        | `USER#<userId>`                  | `SETTINGS`                            | `template` (`{ text, updatedAt }` or absent), `words` (list of `{ id, source, target, updatedAt }`), `instructions` (list of `{ id, text, updatedAt }`), `version` (number, for conditional writes) |
-| Receipt         | `SESSION#<sessionId>`            | `RECEIPT#<createdAt ISO>#<receiptId>` | `receiptId`, `userId`, `photoKey`, `status`, `text`, `error`, `attempts`, `createdAt`, `updatedAt`                                                                                                  |
+| Receipt         | `SESSION#<sessionId>`            | `RECEIPT#<createdAt ISO>#<receiptId>` | `receiptId`, `userId`, `photoKey`, `thumbKey` (since T-019; absent on older receipts), `status`, `text`, `error`, `attempts`, `createdAt`, `updatedAt`                                              |
 | User            | `USER#<userId>`                  | `PROFILE`                             | `username`, `passwordHash` (scrypt), `failedLogins`, `lockedUntil`, `createdAt`                                                                                                                     |
 | Username lookup | `USERNAME#<normalised username>` | `USERNAME`                            | `userId`; written with `PROFILE` in one transaction, so login finds the user without a scan                                                                                                         |
 
@@ -65,14 +65,15 @@ arrive without a data migration.
 - The settings item is created by the first processing run, whatever its outcome, which saves the builder's usual template, with empty `words` and `instructions`; or by the first saved rule, if that comes first. A deleted template is saved again the same way on the next run.
 - A word entry is keyed by its normalised `source` (trimmed, case-folded), so a new rule for the same source overrides the old one.
 
-Photo keys: `photos/<userId>/<sessionId>/<receiptId>.jpg`. The browser shows a photo through a
-short-lived presigned GET URL; the bucket is never public.
+Photo keys: `photos/<userId>/<sessionId>/<receiptId>.jpg`, and the list's small copy
+`photos/<userId>/<sessionId>/<receiptId>.thumb.jpg` (400 px, T-019). The browser shows both through
+short-lived presigned GET URLs; the bucket is never public.
 
 ## Request Flows
 
 ### Capture and process
 
-1. The phone compresses the photo in the browser to JPEG, longest side at most 2048 px. This also turns iPhone HEIC into JPEG.
+1. The phone compresses the photo in the browser to JPEG, longest side at most 2048 px, and makes a 400 px copy for the list from the same decode. This also turns iPhone HEIC into JPEG.
 2. `POST /api/receipts` (multipart, JPEG only, at most 4 MB: `MAX_PHOTO_BYTES` in `src/server/upload-form.ts`) stores the photo in S3, then creates the receipt with `status: processing` and bumps the session `version` in one transaction, and returns at once. The phone chooses `receiptId` and `createdAt`; a retry with the same pair returns the stored receipt, so a lost response never makes a duplicate. Several photos upload one after another, not in parallel.
 3. The phone then calls `POST /api/receipts/<receiptId>/process`. The server reads settings, calls DeepSeek, writes `text` and `status`, and bumps `version`.
 4. The phone does not depend on the response to step 3. Every device, the phone included, learns the result by polling. If step 3's HTTP connection drops, the server still finishes, and the 2-minute rule catches a run that died.

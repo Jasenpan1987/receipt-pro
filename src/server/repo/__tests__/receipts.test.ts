@@ -132,6 +132,18 @@ describe("createReceipt", () => {
     await expect(createReceipt(store, input, NOW)).resolves.toMatchObject({ created: true });
   });
 
+  it("stores where the small copy is (T-019)", async () => {
+    const store = stubStore(() => ({}));
+    const { receipt } = await createReceipt(
+      store,
+      { ...input, thumbKey: "photos/u-1/s-1/r-1.thumb.jpg" },
+      NOW
+    );
+    expect(receipt.thumbKey).toBe("photos/u-1/s-1/r-1.thumb.jpg");
+    const [put] = (store.send.mock.calls[0][0] as TransactWriteCommand).input.TransactItems ?? [];
+    expect(put.Put?.Item).toMatchObject({ thumbKey: "photos/u-1/s-1/r-1.thumb.jpg" });
+  });
+
   it("still fails when the conflicts do not stop", async () => {
     const store = stubStore(() => {
       throw conflict();
