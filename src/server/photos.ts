@@ -7,6 +7,15 @@ export function photoKey(userId: string, sessionId: string, receiptId: string): 
   return `photos/${userId}/${sessionId}/${receiptId}.jpg`;
 }
 
+/** The stored JPEG, as sent to DeepSeek. */
+export async function getPhoto(s3: S3Client, bucket: string, key: string): Promise<Uint8Array> {
+  const { Body } = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  if (!Body) {
+    throw new Error(`Photo ${key} has no body.`);
+  }
+  return Body.transformToByteArray();
+}
+
 /** The key is fixed by the receipt, so a retried upload overwrites the same object. */
 export async function putPhoto(
   s3: S3Client,

@@ -2,6 +2,7 @@
 
 import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 import { compressImage } from "src/client/compress-image";
+import { processReceipt } from "src/client/process-receipt";
 import { randomId } from "src/client/random-id";
 import { fetchSession } from "src/client/session-api";
 import { UploadError, uploadReceipt } from "src/client/upload-receipt";
@@ -113,6 +114,8 @@ export function ReceiptsScreen() {
       setPending(list => list.filter(p => p.receiptId !== item.receiptId));
       URL.revokeObjectURL(item.previewUrl);
       void load();
+      // Not part of the upload queue: the next photo uploads while this one is read.
+      void processReceipt(receipt.receiptId).then(load);
     } catch (error) {
       patch(item.receiptId, {
         state: "failed",

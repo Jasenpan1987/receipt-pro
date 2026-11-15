@@ -36,19 +36,14 @@ T-008, but after each other, because both change the receipt list and the receip
 ### T-004: Generate the output text
 
 - **Type:** feature
-- **Status:** ready
-- **Requirement:** `docs/work/mvp/requirements.md#s-03-generate-the-output-text`
-- **Knowledge:** `docs/knowledge/architecture.md#ai-call`, `docs/knowledge/business.md#output`, `docs/knowledge/business.md#unreadable-receipts`
-- **Code:** `src/app/api/receipts/[id]/process/route.ts`, `src/server/ai/`
-- **Description:** After T-003's upload returns, the phone calls `POST /api/receipts/<id>/process`. The server reads `SETTINGS`, builds the prompt (fixed output rules, then template, word list, custom instructions), sends the photo to `deepseek-flash` in JSON mode, and keeps only `text`. Blank or invalid JSON gets one retry, then `status: failed` with a plain `error`. `status: unreadable` shows `看不清，请重拍`. With no template saved, the first `text` becomes `SETTINGS.template`. A receipt in `processing` for more than 2 minutes is reported as `failed`. Every write increments the session `version`.
-- **Acceptance:** Vitest covers the prompt builder and the response parser, including fixtures where the model adds conversational text such as "好，这张弄完了，请发下一张" outside the JSON or inside an extra field: only `text` survives. On a real receipt, the list shows the text in the builder's template. With no template, the first output is saved as the template. An invalid `DEEPSEEK_API_KEY` gives `failed` with a plain message.
-- **Blocks:** T-005, T-009 · **Blocked by:** T-002, T-003 · **Parallel with:** none
-- **Notes:** T-002 findings: `docs/knowledge/tech-conventions.md#real-receipts-t-002-2026-11-15` (thinking off; strict parsing; the JSON, text, JSON reply shape for the parser fixtures). `scripts/probe-deepseek.ts` re-runs a prompt on `probe-photos/`. The DeepSeek key stays on the server. Keep the fixed system prompt in one file so rules can be read in one place.
+- **Status:** done (2026-11-15)
+- **Completion:** After each upload the phone calls `POST /api/receipts/<id>/process`. The server reads the settings and the photo, calls `deepseek-flash` with thinking off in JSON mode, and keeps only `text`: exactly one JSON object is accepted, text around it is dropped, two objects or a blank reply get one retry, then `failed` with a plain message (invalid key, empty balance, busy, timeout each have their own). With no template, the prompt uses the builder's usual template and the first `ok` output is saved as the template. Each run is an attempt; its result is written only if no newer run started. A receipt `processing` for over 2 minutes shows as `failed`. Verified with 79 unit tests (suite total; parser and reader fixtures include the T-002 reply shapes), end to end against real AWS and DeepSeek as a `smoke-test-` user (2–4 s per receipt, template saved, invalid key gives `failed`), and on the builder's iPhone (3.5 s).
+- **Code:** `src/server/ai/`, `src/app/api/receipts/[id]/process/route.ts`, `src/server/repo/receipts.ts`, `src/server/repo/settings.ts`, `src/server/receipt-view.ts`, `src/client/process-receipt.ts`
 
 ### T-005: See receipts on the computer and copy the text
 
 - **Type:** feature
-- **Status:** backlog
+- **Status:** ready
 - **Requirement:** `docs/work/mvp/requirements.md#s-04-copy-the-text`, `docs/work/mvp/requirements.md#s-05-see-receipts-on-every-device`
 - **Knowledge:** `docs/knowledge/architecture.md#sync`, `docs/records/decisions/ADR-004-sync-by-polling.md`
 - **Code:** `src/app/api/session/route.ts`, `src/client/use-session-poll.ts`, `src/client/copy-text.ts`
@@ -95,7 +90,7 @@ T-008, but after each other, because both change the receipt list and the receip
 ### T-009: Regenerate a receipt
 
 - **Type:** feature
-- **Status:** backlog
+- **Status:** ready
 - **Requirement:** `docs/work/mvp/requirements.md#s-07-regenerate`
 - **Knowledge:** `docs/knowledge/business.md#regenerate`
 - **Code:** `src/app/page.tsx`, `src/app/api/receipts/[id]/process/route.ts`

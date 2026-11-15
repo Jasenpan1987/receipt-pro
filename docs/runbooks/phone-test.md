@@ -21,7 +21,7 @@ starts with `smoke-test-`, and that user's data is deleted afterwards.
 
 3. Find the Mac's LAN address with `ipconfig getifaddr en0`, and open `http://<address>:3000` on the phone, on the same Wi-Fi.
 4. Check what the server stored: `curl -s http://localhost:3000/api/session`. Each `photoUrl` downloads the stored photo.
-5. Stop the dev server, then delete the test user's data:
+5. Stop the dev server, then delete the test user's session, receipts, settings, and photos:
 
    ```sh
    LOCAL_USER_ID=<test user id> pnpm exec tsx --env-file=.env.local scripts/delete-test-user.ts

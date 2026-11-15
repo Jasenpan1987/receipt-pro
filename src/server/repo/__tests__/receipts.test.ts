@@ -147,3 +147,75 @@ describe("listReceipts", () => {
     });
   });
 });
+
+describe("processing runs", () => {
+  const receipt = {
+    receiptId: "r-1",
+    userId: "u-1",
+    sessionId: "s-1",
+    photoKey: "photos/u-1/s-1/r-1.jpg",
+    status: "processing" as const,
+    attempts: 0,
+    createdAt: "2026-11-15T10:00:00.000Z",
+    updatedAt: "2026-11-15T10:00:00.000Z"
+  };
+
+  it("starts attempt 1 only if no other run started, and bumps the version", async () => {
+    const { startAttempt } = await import("src/server/repo/receipts");
+    const store = stubStore(() => ({}));
+    await expect(startAttempt(store, receipt, NOW)).resolves.toBe(1);
+    const [update, bump] =
+      (store.send.mock.calls[0][0] as TransactWriteCommand).input.TransactItems ?? [];
+    expect(update.Update).toMatchObject({
+      Key: { PK: "SESSION#s-1", SK: "RECEIPT#2026-11-15T10:00:00.000Z#r-1" },
+      ConditionExpression: "#attempts = :previous",
+      ExpressionAttributeValues: { ":attempt": 1, ":previous": 0, ":processing": "processing" }
+    });
+    expect(bump.Update?.UpdateExpression).toBe("SET #version = #version + :one");
+  });
+
+  it("does not start a second run of the same attempt", async () => {
+    const { startAttempt } = await import("src/server/repo/receipts");
+    const store = stubStore(() => {
+      throw cancelled(["ConditionalCheckFailed", "None"]);
+    });
+    await expect(startAttempt(store, receipt, NOW)).resolves.toBeUndefined();
+  });
+
+  it("writes the text of a finished run and clears any old error", async () => {
+    const { finishAttempt } = await import("src/server/repo/receipts");
+    const store = stubStore(() => ({}));
+    await expect(
+      finishAttempt(store, receipt, 1, { status: "done", text: "T" }, NOW)
+    ).resolves.toBe(true);
+    const [update] =
+      (store.send.mock.calls[0][0] as TransactWriteCommand).input.TransactItems ?? [];
+    expect(update.Update).toMatchObject({
+      UpdateExpression: "SET #status = :status, #updatedAt = :now, #text = :text REMOVE #error",
+      ConditionExpression: "#attempts = :attempt",
+      ExpressionAttributeValues: { ":status": "done", ":text": "T", ":attempt": 1 }
+    });
+  });
+
+  it("stores no text for an unreadable receipt, so there is nothing to copy", async () => {
+    const { finishAttempt } = await import("src/server/repo/receipts");
+    const store = stubStore(() => ({}));
+    await finishAttempt(store, receipt, 1, { status: "unreadable" }, NOW);
+    const [update] =
+      (store.send.mock.calls[0][0] as TransactWriteCommand).input.TransactItems ?? [];
+    expect(update.Update?.UpdateExpression).toBe(
+      "SET #status = :status, #updatedAt = :now REMOVE #text, #error"
+    );
+  });
+
+  // A slow run must not overwrite a newer one (T-009 regenerate).
+  it("drops the outcome of a run that a newer run replaced", async () => {
+    const { finishAttempt } = await import("src/server/repo/receipts");
+    const store = stubStore(() => {
+      throw cancelled(["ConditionalCheckFailed", "None"]);
+    });
+    await expect(
+      finishAttempt(store, receipt, 1, { status: "failed", error: "E" }, NOW)
+    ).resolves.toBe(false);
+  });
+});

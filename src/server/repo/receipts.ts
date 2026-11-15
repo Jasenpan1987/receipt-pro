@@ -159,3 +159,176 @@ export async function listReceipts(store: Store, sessionId: string): Promise<Rec
   } while (startKey);
   return receipts;
 }
+
+/** A receipt of the session by its ID. The sort key starts with `createdAt`, so this reads the session. */
+export async function findReceipt(
+  store: Store,
+  sessionId: string,
+  receiptId: string
+): Promise<Receipt | undefined> {
+  let startKey: Record<string, any> | undefined;
+  do {
+    const page = await store.db.send(
+      new QueryCommand({
+        TableName: store.tableName,
+        KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
+        FilterExpression: "receiptId = :receiptId",
+        ExpressionAttributeValues: {
+          ":pk": sessionPk(sessionId),
+          ":prefix": RECEIPT_PREFIX,
+          ":receiptId": receiptId
+        },
+        ConsistentRead: true,
+        ExclusiveStartKey: startKey
+      })
+    );
+    const item = page.Items?.[0];
+    if (item) {
+      return fromItem(item);
+    }
+    startKey = page.LastEvaluatedKey;
+  } while (startKey);
+  return undefined;
+}
+
+/** What one processing run ends with. `unreadable` stores no text, so there is nothing to copy. */
+export type Outcome =
+  | { status: "done"; text: string }
+  | { status: "unreadable" }
+  | { status: "failed"; error: string };
+
+function bumpVersion(store: Store, receipt: Receipt) {
+  return {
+    Update: {
+      TableName: store.tableName,
+      Key: { PK: userPk(receipt.userId), SK: CURRENT_SESSION_SK },
+      UpdateExpression: "SET #version = #version + :one",
+      ConditionExpression: "#sessionId = :sessionId",
+      ExpressionAttributeNames: { "#version": "version", "#sessionId": "sessionId" },
+      ExpressionAttributeValues: { ":one": 1, ":sessionId": receipt.sessionId }
+    }
+  };
+}
+
+/**
+ * Starts a processing run: `attempts` + 1, status `processing`, old text and error cleared, and
+ * the session version bumped so every device sees it. Returns the run's attempt number, or
+ * `undefined` when another run started first.
+ */
+export async function startAttempt(
+  store: Store,
+  receipt: Receipt,
+  now = new Date()
+): Promise<number | undefined> {
+  const attempt = receipt.attempts + 1;
+  try {
+    await store.db.send(
+      new TransactWriteCommand({
+        TransactItems: [
+          {
+            Update: {
+              TableName: store.tableName,
+              Key: {
+                PK: sessionPk(receipt.sessionId),
+                SK: receiptSk(receipt.createdAt, receipt.receiptId)
+              },
+              UpdateExpression:
+                "SET #status = :processing, #attempts = :attempt, #updatedAt = :now REMOVE #text, #error",
+              ConditionExpression: "#attempts = :previous",
+              ExpressionAttributeNames: {
+                "#status": "status",
+                "#attempts": "attempts",
+                "#updatedAt": "updatedAt",
+                "#text": "text",
+                "#error": "error"
+              },
+              ExpressionAttributeValues: {
+                ":processing": "processing",
+                ":attempt": attempt,
+                ":previous": receipt.attempts,
+                ":now": now.toISOString()
+              }
+            }
+          },
+          bumpVersion(store, receipt)
+        ]
+      })
+    );
+    return attempt;
+  } catch (error) {
+    const codes = cancellationCodes(error);
+    if (codes?.[0] === "ConditionalCheckFailed") {
+      return undefined;
+    }
+    if (codes?.[1] === "ConditionalCheckFailed") {
+      throw new SessionChangedError("The current session changed before processing started.");
+    }
+    throw error;
+  }
+}
+
+/**
+ * Writes a run's outcome and bumps the session version, but only if no newer run has started
+ * since (a slow run must not overwrite a newer one). Returns false when the outcome was dropped.
+ */
+export async function finishAttempt(
+  store: Store,
+  receipt: Receipt,
+  attempt: number,
+  outcome: Outcome,
+  now = new Date()
+): Promise<boolean> {
+  const set = ["#status = :status", "#updatedAt = :now"];
+  const remove: string[] = [];
+  const values: Record<string, unknown> = {
+    ":status": outcome.status,
+    ":now": now.toISOString(),
+    ":attempt": attempt
+  };
+  if (outcome.status === "done") {
+    set.push("#text = :text");
+    values[":text"] = outcome.text;
+    remove.push("#error");
+  } else if (outcome.status === "failed") {
+    set.push("#error = :error");
+    values[":error"] = outcome.error;
+    remove.push("#text");
+  } else {
+    remove.push("#text", "#error");
+  }
+  try {
+    await store.db.send(
+      new TransactWriteCommand({
+        TransactItems: [
+          {
+            Update: {
+              TableName: store.tableName,
+              Key: {
+                PK: sessionPk(receipt.sessionId),
+                SK: receiptSk(receipt.createdAt, receipt.receiptId)
+              },
+              UpdateExpression: `SET ${set.join(", ")} REMOVE ${remove.join(", ")}`,
+              ConditionExpression: "#attempts = :attempt",
+              ExpressionAttributeNames: {
+                "#status": "status",
+                "#updatedAt": "updatedAt",
+                "#attempts": "attempts",
+                "#text": "text",
+                "#error": "error"
+              },
+              ExpressionAttributeValues: values
+            }
+          },
+          bumpVersion(store, receipt)
+        ]
+      })
+    );
+    return true;
+  } catch (error) {
+    // A newer run, or a new session that removed the receipt: this outcome no longer applies.
+    if (cancellationCodes(error)?.some(code => code === "ConditionalCheckFailed")) {
+      return false;
+    }
+    throw error;
+  }
+}

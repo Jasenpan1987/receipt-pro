@@ -1,4 +1,4 @@
-// Deletes a test user's current session, receipts, and photos. Refuses any user whose ID does
+// Deletes a test user's current session, receipts, settings, and photos. Refuses any user whose ID does
 // not start with "smoke-test-", so the real user's data cannot be deleted by mistake.
 //
 //   LOCAL_USER_ID=smoke-test-<uuid> pnpm exec tsx --env-file=.env.local scripts/delete-test-user.ts
@@ -51,6 +51,12 @@ async function main() {
     );
     items++;
   }
+
+  // The settings item exists once a first output was saved as the template (T-004).
+  await db.send(
+    new DeleteCommand({ TableName: tableName, Key: { PK: userPk(userId), SK: "SETTINGS" } })
+  );
+  items++;
 
   let photos = 0;
   let token: string | undefined;

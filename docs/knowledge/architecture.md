@@ -60,6 +60,8 @@ arrive without a data migration.
 
 - Receipt `status`: `processing` | `done` | `unreadable` | `failed`. A receipt in `processing` whose `updatedAt` is more than 2 minutes old is shown as `failed`, so nothing hangs forever.
 - Settings is one item because a single user has few rules and every AI call reads all of them in one request.
+- `attempts` counts processing runs. A run starts by raising it and setting `processing`; its result is written only if `attempts` is unchanged, so a slow earlier run never overwrites a newer one (T-004, used by T-009).
+- The settings item is created when the first `ok` output is saved as the template, with empty `words` and `instructions`.
 - A word entry is keyed by its normalised `source` (trimmed, case-folded), so a new rule for the same source overrides the old one.
 
 Photo keys: `photos/<userId>/<sessionId>/<receiptId>.jpg`. The browser shows a photo through a

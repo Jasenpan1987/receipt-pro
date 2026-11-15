@@ -22,5 +22,7 @@ export type SessionView = {
 
 export type CreateReceiptResponse = { receipt: ReceiptView };
 
+export type ProcessReceiptResponse = { status: ReceiptStatus };
+
 /** Every API error. `error` is a plain Chinese message the page can show as is. */
 export type ApiError = { error: string };
