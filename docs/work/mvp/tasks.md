@@ -71,13 +71,9 @@ T-008, but after each other, because both change the receipt list and the receip
 ### T-008: See and delete rules
 
 - **Type:** feature
-- **Status:** ready
-- **Requirement:** `docs/work/mvp/requirements.md#s-09-see-and-delete-rules`
-- **Knowledge:** `docs/knowledge/business.md#settings-and-rules`
-- **Code:** `src/app/rules/page.tsx`, `src/app/api/rules/route.ts`, `src/app/api/rules/[id]/route.ts`
-- **Description:** A rules page, one tap from the main page, lists the template, each word entry, and each custom instruction in plain Chinese. Each has a delete button with confirmation (`DELETE /api/rules/<id>`, conditional on `SETTINGS.version`).
-- **Acceptance:** Every saved rule appears; deleting one removes it, and the next receipt no longer follows it. Deleting the template makes the next first output the template again.
-- **Blocks:** T-011 · **Blocked by:** T-007 · **Parallel with:** T-010
+- **Status:** done (2026-11-15)
+- **Completion:** A "规则" link in the header (one tap) opens `/rules`: the template (or, with none saved, the builder's usual one), each word entry as "小票上的 X 写成 Y", and each custom instruction, each with "删除" behind a confirmation. `GET /api/rules` lists them; `DELETE /api/rules/<id>?version=<v>` removes one with a conditional write on the settings version. With the builder's 2026-11-15 change to S-03 criterion 7, deleting the template returns to the builder's usual template, which is saved again on the next run. Verified with 131 unit tests (suite total) and a browser run against real AWS and DeepSeek as a `smoke-test-` user with three seeded rules: after each deletion, regenerating the same receipt dropped that rule's effect (`红超市` back to `通利`, `柚子` back, the template's field order back to the usual one). The header fits an iPhone-width screen.
+- **Code:** `src/app/rules/page.tsx`, `src/client/rules-screen.tsx`, `src/app/api/rules/route.ts`, `src/app/api/rules/[id]/route.ts`, `src/server/rules/apply-rule.ts`
 
 ### T-009: Regenerate a receipt
 

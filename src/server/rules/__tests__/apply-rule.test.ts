@@ -130,3 +130,20 @@ describe("applyProposal", () => {
     ).toThrow();
   });
 });
+
+describe("removeRule", () => {
+  it("removes the word entry, instruction, or template with that ID and nothing else", async () => {
+    const { removeRule } = await import("src/server/rules/apply-rule");
+    expect(removeRule(settings(), "w1")?.words).toEqual([]);
+    expect(removeRule(settings(), "i1")?.instructions).toEqual([]);
+    const noTemplate = removeRule(settings(), "template");
+    expect(noTemplate?.template).toBeUndefined();
+    expect(noTemplate?.words).toHaveLength(1);
+  });
+
+  it("finds nothing to remove for an unknown ID", async () => {
+    const { removeRule } = await import("src/server/rules/apply-rule");
+    expect(removeRule(settings(), "w9")).toBeUndefined();
+    expect(removeRule(settings({ template: undefined }), "template")).toBeUndefined();
+  });
+});

@@ -72,3 +72,24 @@ export function applyProposal(
       throw new Error("Not a rule: nothing to save.");
   }
 }
+
+/**
+ * S-09: the settings without the rule `id` (a word entry, an instruction, or "template"), or
+ * `undefined` when there is no such rule. Without a template, receipts go back to the builder's
+ * usual template (src/server/ai/system-prompt.ts).
+ */
+export function removeRule(settings: Settings, id: string): Settings | undefined {
+  if (id === TEMPLATE_ID) {
+    return settings.template ? { ...settings, template: undefined } : undefined;
+  }
+  if (settings.words.some(word => word.id === id)) {
+    return { ...settings, words: settings.words.filter(word => word.id !== id) };
+  }
+  if (settings.instructions.some(instruction => instruction.id === id)) {
+    return {
+      ...settings,
+      instructions: settings.instructions.filter(instruction => instruction.id !== id)
+    };
+  }
+  return undefined;
+}

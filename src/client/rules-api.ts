@@ -3,7 +3,8 @@ import type {
   ApplyRuleRequest,
   InterpretRuleResponse,
   RuleMessage,
-  RuleProposal
+  RuleProposal,
+  RulesView
 } from "src/shared/api-types";
 
 async function post<T>(url: string, body: unknown, fallback: string): Promise<T> {
@@ -37,4 +38,31 @@ export async function applyRule(proposal: RuleProposal, version: number): Promis
     { proposal, version } satisfies ApplyRuleRequest,
     "保存失败，请重试。"
   );
+}
+
+export async function fetchRules(): Promise<RulesView> {
+  const response = await fetch("/api/rules", {
+    cache: "no-store",
+    signal: AbortSignal.timeout(15_000)
+  });
+  if (!response.ok) {
+    throw new Error("读取规则失败，请重试。");
+  }
+  return (await response.json()) as RulesView;
+}
+
+export async function deleteRule(id: string, version: number): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/rules/${encodeURIComponent(id)}?version=${version}`, {
+      method: "DELETE",
+      signal: AbortSignal.timeout(15_000)
+    });
+  } catch {
+    throw new Error("连不上服务器，请检查网络后重试。");
+  }
+  if (!response.ok) {
+    const error = (await response.json().catch(() => undefined)) as ApiError | undefined;
+    throw new Error(error?.error ?? "删除失败，请重试。");
+  }
 }

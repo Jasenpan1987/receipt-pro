@@ -3,7 +3,7 @@
 > **Status:** planned; M1 in progress
 > **Goal:** The capture-to-copy loop: phone photo in, one line of plain text out, copied on the computer into Word.
 > **Current milestone:** M1, local capture-to-copy loop (`docs/work/mvp/milestones.md#m1-local-capture-to-copy-loop-committed`)
-> **Current task:** T-008, ready (T-001 to T-005, T-007, T-009, T-010 done 2026-11-15); T-006 waits for the builder
+> **Current task:** every M1 and M2 build task is done (2026-11-15); T-006 and T-011, the verifications, wait for the builder; T-012 is next to build
 
 ## Read First
 
@@ -38,4 +38,4 @@ Table `receipt-pro` and bucket `receipt-pro-photos-jasen` exist and are verified
 
 ## Next Action
 
-OMT Work does T-008 (see and delete rules). T-006, the M1 verification, runs with the builder in one sitting; its notes list the manual checks collected so far.
+Build tasks left are M3 (T-012 login, T-013 deploy, T-014 domain). T-006 and T-011 are QA with the builder in one sitting; their notes list the manual checks collected so far.

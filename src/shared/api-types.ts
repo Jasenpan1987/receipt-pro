@@ -56,3 +56,13 @@ export type InterpretRuleResponse = {
 };
 
 export type ApplyRuleRequest = { proposal: RuleProposal; version: number };
+
+/** `GET /api/rules`: every saved rule, for the rules page (S-09). */
+export type RulesView = {
+  version: number;
+  /** Absent: receipts use the builder's usual template. */
+  template?: string;
+  defaultTemplate: string;
+  words: Array<{ id: string; source: string; target: string }>;
+  instructions: Array<{ id: string; text: string }>;
+};

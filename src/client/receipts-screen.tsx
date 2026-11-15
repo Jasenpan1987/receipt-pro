@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { compressImage } from "src/client/compress-image";
 import { copyText } from "src/client/copy-text";
@@ -251,6 +252,9 @@ export function ReceiptsScreen() {
       <header className={styles.header}>
         <div className={styles.titleRow}>
           <h1 className={styles.title}>receipt-pro</h1>
+          <Link className={styles.rulesLink} href="/rules">
+            规则
+          </Link>
           <button className={styles.addRule} type="button" onClick={() => setAddingRule(true)}>
             加规则
           </button>
