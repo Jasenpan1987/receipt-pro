@@ -1,3 +1,4 @@
+import { applyTemplateDateStyle } from "src/server/ai/date-style";
 import { getModel } from "src/server/ai/model";
 import { ReadFailedError, readReceipt } from "src/server/ai/read-receipt";
 import { buildSystemPrompt, DEFAULT_TEMPLATE } from "src/server/ai/system-prompt";
@@ -36,8 +37,11 @@ async function run(
       system: buildSystemPrompt(settings),
       photo
     });
+    const template = settings.template?.text ?? DEFAULT_TEMPLATE;
     const outcome: Outcome =
-      reading.status === "ok" ? { status: "done", text: reading.text } : { status: "unreadable" };
+      reading.status === "ok"
+        ? { status: "done", text: applyTemplateDateStyle(reading.text, template) }
+        : { status: "unreadable" };
     return { outcome, hadTemplate };
   } catch (error) {
     if (error instanceof ReadFailedError) {

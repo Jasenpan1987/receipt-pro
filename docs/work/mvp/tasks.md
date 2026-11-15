@@ -50,7 +50,7 @@ T-008, but after each other, because both change the receipt list and the receip
 ### T-006: M1 verification with real receipts
 
 - **Type:** qa
-- **Status:** ready
+- **Status:** done (2026-11-15)
 - **Requirement:** `docs/work/mvp/requirements.md#success-measures`
 - **Knowledge:** `docs/work/mvp/gaps.md`
 - **Code:** none
@@ -141,6 +141,17 @@ T-008, but after each other, because both change the receipt list and the receip
 - **Acceptance:** Results in `docs/work/mvp/test-plan.md`; the epic is ready to archive.
 - **Blocked by:** T-014
 - **Notes:** Builder, 2026-11-15: manual edge-case tests on the real phones wait until here, at the end of the MVP. Collected so far: Wi-Fi off mid-upload, then retry (T-003; already covered by browser offline tests in WebKit and Chromium). From T-004 on, tasks are checked on the iPhone only; the Xiaomi checks of those tasks also wait until here (T-003 passed on both phones).
+
+## Bugs Found in Verification
+
+### T-017: The fixed date rule beat the user's template
+
+- **Type:** bug
+- **Status:** done (2026-11-15)
+- **Found in:** T-006. The builder's rules dropped 日 and put three spaces after the date; receipts often still had 日 and one space.
+- **Reproduce:** with the template `2026 年 10 月 1   Costco 青菜 3.25 水 2.0 啤酒 10.0 共1234，现金`, 6 of 6 readings wrote `1 日` and 6 of 6 missed the three spaces. Cause: fixed rule 2 said `日期写成 "2026 年 10 月 1 日" 这样`, and only rules 3 to 8 yielded to the user's.
+- **Fix:** rule 2 now takes the date style from the template, and the user's template, word list, and instructions win over every fixed rule. `src/server/ai/date-style.ts` rewrites the leading date in the template's style (日 or not, the spacing after it), because exact spacing is the model's weak point: with the prompt fix alone, 3 of 6 still had two spaces; with both, 0 of 6.
+- **Code:** `src/server/ai/system-prompt.ts`, `src/server/ai/date-style.ts`, `src/app/api/receipts/[id]/process/route.ts`
 
 ## Later (not in a milestone)
 

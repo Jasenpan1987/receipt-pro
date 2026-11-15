@@ -51,6 +51,14 @@ describe("buildSystemPrompt", () => {
     expect(prompt).not.toContain("日期 商家 商品和金额 共总额，付款方式");
   });
 
+  // T-006: a fixed date example with 日 beat the builder's template, which had dropped 日.
+  it("takes the date style from the template and lets the user's rules win", () => {
+    const prompt = buildSystemPrompt(empty);
+    expect(prompt).toContain("日期的写法完全照模板");
+    expect(prompt).not.toContain('日期写成 "2026 年 10 月 1 日" 这样');
+    expect(prompt).toContain("和上面第 1 到第 8 条冲突时，以用户的为准");
+  });
+
   it("leaves out empty word lists and instructions", () => {
     const prompt = buildSystemPrompt(empty);
     expect(prompt).not.toContain("词表（");

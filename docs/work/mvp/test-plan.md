@@ -51,6 +51,14 @@ Wi-Fi, tonight's paper receipts at hand.
 **Record:** number of receipts; fully right; errors by kind; any conversational text (expected:
 none); rough seconds per receipt.
 
+**Result, 2026-11-15 (builder):** account created with the script, logged in on both devices,
+used the app end to end once without counting each receipt: it works. Two of the builder's
+format rules (no 日 after the day; three spaces after the date) were often not followed: bug
+T-017, fixed and re-measured the same day (0 of 6 wrong). Reading accuracy stays as measured in
+T-002 and after the format fix (`docs/knowledge/tech-conventions.md#real-receipts-t-002-2026-11-15`, G-004).
+
+**Verdict:** M1's definition of done is met. Accepted.
+
 ### Deferred
 
 - To T-011 (automated by QA): a session of 100 receipts; a Mac tab open for 8 hours.

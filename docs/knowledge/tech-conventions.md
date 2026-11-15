@@ -65,6 +65,11 @@ Reproduce: a minimal `src/app/layout.tsx` and `page.tsx` with `next@16.4.6`,
 
 - Next.js 16 renamed `middleware.ts` to `proxy.ts` (export `proxy`). It runs on the Node.js runtime by default, so `node:crypto` works there. The docs advise checking authentication in each route as well; every API route calls `requireUser()` (`src/server/identity.ts`).
 
+### Rules for the Receipt Prompt (T-017)
+
+- The fixed rules never fix anything the user's template decides: field order, date style, separators. A fixed example ("2026 年 10 月 1 日") beat the builder's template in 6 of 6 readings.
+- Exact formatting the model cannot hold, such as several spaces, is made exact in code from the template after reading (`src/server/ai/date-style.ts` for the leading date). If more exact-format rules appear, the general fix is for the model to return fields and code to assemble the line; that changes ADR-002 and is the builder's call.
+
 ### Browser Rules Found in T-003
 
 - The phone uses the dev server over plain HTTP, which is not a secure context: `crypto.randomUUID` and `navigator.clipboard` do not exist there. IDs come from `src/client/random-id.ts` (`crypto.getRandomValues`).
