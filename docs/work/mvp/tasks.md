@@ -22,14 +22,9 @@ T-008, but after each other, because both change the receipt list and the receip
 ### T-002: DeepSeek probe with a real receipt
 
 - **Type:** integration
-- **Status:** ready
-- **Requirement:** `docs/work/mvp/requirements.md#s-03-generate-the-output-text`
-- **Knowledge:** `docs/knowledge/tech-conventions.md#deepseek-image-input`, `docs/knowledge/architecture.md#ai-call`
+- **Status:** done (2026-11-15)
+- **Completion:** `deepseek-flash` takes images through `@ai-sdk/deepseek` (chat endpoint), together with JSON mode; the conflict is resolved and `@ai-sdk/openai-compatible` is not needed. 30 calls on six photos of the builder's real receipts: with thinking off, about 2 s per call, dates and totals 6/6, item prices 31/34; thinking on is 3–38 s and no more accurate. 2 of 30 replies were invalid JSON (JSON, text, JSON), rejected by the SDK's strict parsing. Photos must be sent upright. Findings and reproduce command: `docs/knowledge/tech-conventions.md#real-receipts-t-002-2026-11-15`. G-004 and G-007 updated with the measurements.
 - **Code:** `scripts/probe-deepseek.ts`
-- **Description:** A script that sends one compressed receipt photo to `deepseek-flash` **through the Vercel AI SDK** (`@ai-sdk/deepseek`), asking for `{"status", "text"}` in the builder's template as structured output. First settle the conflict in `docs/knowledge/tech-conventions.md#conflict-does-deepseek-flash-accept-images-through-the-ai-sdk`: does the provider send the image, and does structured output work with it? If `@ai-sdk/deepseek` refuses image parts, try `@ai-sdk/openai-compatible` pointed at `https://api.deepseek.com`. Run it on 3–5 of the builder's real receipts. Record: does JSON mode work with image input; time per call; tokens per call; any blank content; how the output compares to the receipt. Why: ADR-002's guard against conversational text depends on JSON mode working with images, and nobody has checked.
-- **Acceptance:** Findings, with the command that reproduces them, written to `docs/knowledge/tech-conventions.md#deepseek-image-input`. G-007 gets a measured time to discuss. If JSON mode fails with images, stop and report before T-004.
-- **Blocks:** T-004 · **Blocked by:** T-001 · **Parallel with:** T-003
-- **Notes:** Needs 3–5 real receipt photos from the builder. Probe photos stay out of git.
 
 ### T-003: Take a photo and see it in the list
 
@@ -41,14 +36,14 @@ T-008, but after each other, because both change the receipt list and the receip
 ### T-004: Generate the output text
 
 - **Type:** feature
-- **Status:** backlog
+- **Status:** ready
 - **Requirement:** `docs/work/mvp/requirements.md#s-03-generate-the-output-text`
 - **Knowledge:** `docs/knowledge/architecture.md#ai-call`, `docs/knowledge/business.md#output`, `docs/knowledge/business.md#unreadable-receipts`
 - **Code:** `src/app/api/receipts/[id]/process/route.ts`, `src/server/ai/`
 - **Description:** After T-003's upload returns, the phone calls `POST /api/receipts/<id>/process`. The server reads `SETTINGS`, builds the prompt (fixed output rules, then template, word list, custom instructions), sends the photo to `deepseek-flash` in JSON mode, and keeps only `text`. Blank or invalid JSON gets one retry, then `status: failed` with a plain `error`. `status: unreadable` shows `看不清，请重拍`. With no template saved, the first `text` becomes `SETTINGS.template`. A receipt in `processing` for more than 2 minutes is reported as `failed`. Every write increments the session `version`.
 - **Acceptance:** Vitest covers the prompt builder and the response parser, including fixtures where the model adds conversational text such as "好，这张弄完了，请发下一张" outside the JSON or inside an extra field: only `text` survives. On a real receipt, the list shows the text in the builder's template. With no template, the first output is saved as the template. An invalid `DEEPSEEK_API_KEY` gives `failed` with a plain message.
 - **Blocks:** T-005, T-009 · **Blocked by:** T-002, T-003 · **Parallel with:** none
-- **Notes:** The DeepSeek key stays on the server. Keep the fixed system prompt in one file so rules can be read in one place.
+- **Notes:** T-002 findings: `docs/knowledge/tech-conventions.md#real-receipts-t-002-2026-11-15` (thinking off; strict parsing; the JSON, text, JSON reply shape for the parser fixtures). `scripts/probe-deepseek.ts` re-runs a prompt on `probe-photos/`. The DeepSeek key stays on the server. Keep the fixed system prompt in one file so rules can be read in one place.
 
 ### T-005: See receipts on the computer and copy the text
 

@@ -128,10 +128,32 @@ Checked against the official docs on 2026-11-15 (`https://api-docs.deepseek.com/
 - Optional `detail`: `low` (downsamples to 512x512), `high`, `original`, `auto`.
 - `deepseek-v4-pro` does not accept images.
 
-### Conflict: does `deepseek-flash` accept images through the AI SDK?
+### Resolved: `deepseek-flash` accepts images through the AI SDK (T-002, 2026-11-15)
 
-Checked 2026-11-15. The two sources disagree; T-002 settles it.
+The two sources disagreed; a call settled it.
 
-- DeepSeek's docs (`https://api-docs.deepseek.com/quick_start/pricing`): `deepseek-flash` supports vision; `deepseek-v4-flash-vision-exp` is retired and routed to `deepseek-flash`.
-- The AI SDK's DeepSeek provider page (`https://ai-sdk.dev/providers/ai-sdk-providers/deepseek`): `deepseek-flash` has no image input; only `deepseek-v4-flash-vision-exp` does. The same page says the provider's Responses API (`deepSeek.responses()`) supports JSON schema structured outputs for `deepseek-flash`, which DeepSeek's own JSON mode page does not mention.
-- Fallback if `@ai-sdk/deepseek` refuses image parts: `@ai-sdk/openai-compatible` pointed at `https://api.deepseek.com`, still inside the AI SDK.
+- DeepSeek's docs (`https://api-docs.deepseek.com/quick_start/pricing`) said `deepseek-flash` supports vision. The AI SDK's provider page said it has no image input.
+- The provider page's "no image input" is only catalog metadata (`node_modules/@ai-sdk/deepseek/src/deepseek-model-catalog.ts`). `convert-to-deepseek-chat-messages.ts` turns every JPEG, PNG, GIF, or WebP file part into an `image_url` part for any model.
+- `@ai-sdk/deepseek` 3.0.87 with `ai` 7.0.173, chat endpoint, `generateText` with `Output.object({ schema })`: the request carries one `image_url` part and `response_format: { "type": "json_object" }`; the SDK writes the schema into the system message (it logs a "compatibility mode" warning). DeepSeek read a synthetic receipt correctly and returned bare JSON, nothing before or after.
+- Measured on that synthetic receipt (880×1120 JPEG, 94 KB): thinking off 2.0 s, 924 input and 76 output tokens; thinking on (DeepSeek's default) 2.4 s, 949 input and 211 output tokens, 139 of them reasoning. Both outputs correct.
+- AI SDK 7 drops request bodies from results unless `include: { requestBody: true }` is set.
+- `@ai-sdk/openai-compatible` is not needed.
+
+Reproduce: `pnpm exec tsx --env-file=.env.local scripts/probe-deepseek.ts <photo> ...` (macOS; it re-encodes each photo like the app with `sips` and Pillow, then runs thinking off and on).
+
+### Real Receipts (T-002, 2026-11-15)
+
+Six iPhone photos of five of the builder's receipts (supermarket, restaurant, hardware store,
+pharmacy; one receipt photographed twice), 30 calls in total. Photos stay out of git in
+`probe-photos/`.
+
+- **Upright pixels matter.** iPhone photos are stored sideways with an orientation tag, and DeepSeek reads raw pixels. Sent sideways, 2 of 6 dates came out with day and month swapped and 1 of 6 totals was wrong. Sent upright, as the app's canvas re-encoding produces them, all 6 dates and totals were right. Anything that sends a photo to DeepSeek must send upright pixels.
+- **Thinking off** (upright, base prompt): 1.8–2.4 s per call; about 1,340 input tokens (the image is about 1,000) and 80–160 output tokens. Dates 6/6, totals 6/6, payment method 6/6, item prices 31 of 34 right. The misses: a receipt that prints each item on two lines (Chinese name, then English name) with the price on one of them, where the model split one item into two and shifted the prices (2 phantom items, 2 wrong prices); and one faintly printed price. Two item names were mistranslated.
+- **Thinking on** (DeepSeek's default): 3–38 s per call, 300–7,400 reasoning tokens. Not more accurate on these receipts; better item names; and one reply could not be parsed.
+- **Prompt rules do not fix layout errors with thinking off.** Adding "an item may span two lines", "check that item prices add up to the subtotal", and the Australian date order changed nothing on the three misread photos, two runs each.
+- **Invalid JSON happens, in one shape.** 2 of 30 replies were a JSON object, then free text (a self-check, or a leaked `<｜end▁of▁thinking｜>` token), then a second JSON object. The AI SDK rejects these (`AI_NoObjectGeneratedError`), so the text never reaches the user. No reply was blank.
+- **Format slips:** once `共$71.70` (a currency symbol the template does not have), once `19.9` for `19.90`.
+
+Recommendation for T-004: thinking off, JSON mode, strict parsing, one retry on an invalid reply. A cheap code check, item prices against the printed subtotal, would have flagged every wrong price above; it is not in the MVP.
+
+Reproduce one photo, thinking off only: `PROBE_THINKING=off pnpm exec tsx --env-file=.env.local scripts/probe-deepseek.ts probe-photos/<photo>`. `PROBE_PROMPT=checks` adds the extra rules.
