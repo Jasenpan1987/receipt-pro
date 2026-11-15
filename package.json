@@ -1,0 +1,48 @@
+{
+  "name": "receipt-pro",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0",
+    "check": "pnpm -s format && concurrently --raw \"pnpm type\" \"pnpm lint\"",
+    "check:all": "pnpm -s format && concurrently --raw \"pnpm type\" \"pnpm lint\" && pnpm -s test",
+    "check:aws": "tsx --env-file=.env.local scripts/check-aws.ts",
+    "test": "vitest run",
+    "type": "tsc --pretty",
+    "lint": "oxlint --type-aware",
+    "lint:fix": "oxlint --fix --type-aware",
+    "format": "oxfmt",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "3.1169.0",
+    "@aws-sdk/client-s3": "3.1169.0",
+    "@aws-sdk/client-sts": "3.1169.0",
+    "@aws-sdk/credential-providers": "3.1169.0",
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "concurrently": "10.0.7",
+    "husky": "9.1.7",
+    "oxfmt": "0.78.0",
+    "oxlint": "1.93.0",
+    "oxlint-tsgolint": "7.0.2007",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  },
+  "browserslist": [
+    "chrome >= 109",
+    "edge >= 121",
+    "firefox >= 115",
+    "safari >= 16"
+  ],
+  "packageManager": "pnpm@12.12.1"
+}

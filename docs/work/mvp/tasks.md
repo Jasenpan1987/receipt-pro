@@ -1,0 +1,180 @@
+# MVP Tasks
+
+> **Epic:** `docs/work/mvp/README.md` · **Milestones:** `docs/work/mvp/milestones.md`
+> Sizing: one task is one focused session.
+
+## Critical Path
+
+T-001 → T-003 → T-004 → T-005 → T-006 → T-007 → T-008 → T-011 → T-012 → T-013 → T-014 → T-015
+
+T-002 runs beside T-003 and must finish before T-004. T-009 and T-010 run beside T-007 and
+T-008, but after each other, because both change the receipt list and the receipts repository.
+
+## M1: Local Capture-to-Copy Loop
+
+### T-001: Project scaffold, AWS account guard, dev resources
+
+- **Type:** setup
+- **Status:** done (2026-11-15)
+- **Completion:** Next.js 16.4 app (App Router, TypeScript 7, pnpm) with the tooling in `docs/knowledge/tech-conventions.md#tooling`. `src/server/config.ts` validates the seven variables; `src/server/aws.ts` pins every client to the personal profile and guards every DynamoDB and S3 command with the account check; `pnpm check:aws` passes against the real table and bucket with another `AWS_PROFILE` set in the shell, and refuses a wrong account ID at the first step. 17 unit tests, `pnpm check:all` green, placeholder page opened on the builder's phone over Wi-Fi.
+- **Code:** `src/server/config.ts`, `src/server/aws.ts`, `src/instrumentation.ts`, `scripts/check-aws.ts`, `src/app/`
+
+### T-002: DeepSeek probe with a real receipt
+
+- **Type:** integration
+- **Status:** ready
+- **Requirement:** `docs/work/mvp/requirements.md#s-03-generate-the-output-text`
+- **Knowledge:** `docs/knowledge/tech-conventions.md#deepseek-image-input`, `docs/knowledge/architecture.md#ai-call`
+- **Code:** `scripts/probe-deepseek.ts`
+- **Description:** A script that sends one compressed receipt photo to `deepseek-flash` **through the Vercel AI SDK** (`@ai-sdk/deepseek`), asking for `{"status", "text"}` in the builder's template as structured output. First settle the conflict in `docs/knowledge/tech-conventions.md#conflict-does-deepseek-flash-accept-images-through-the-ai-sdk`: does the provider send the image, and does structured output work with it? If `@ai-sdk/deepseek` refuses image parts, try `@ai-sdk/openai-compatible` pointed at `https://api.deepseek.com`. Run it on 3–5 of the builder's real receipts. Record: does JSON mode work with image input; time per call; tokens per call; any blank content; how the output compares to the receipt. Why: ADR-002's guard against conversational text depends on JSON mode working with images, and nobody has checked.
+- **Acceptance:** Findings, with the command that reproduces them, written to `docs/knowledge/tech-conventions.md#deepseek-image-input`. G-007 gets a measured time to discuss. If JSON mode fails with images, stop and report before T-004.
+- **Blocks:** T-004 · **Blocked by:** T-001 · **Parallel with:** T-003
+- **Notes:** Needs 3–5 real receipt photos from the builder. Probe photos stay out of git.
+
+### T-003: Take a photo and see it in the list
+
+- **Type:** feature
+- **Status:** ready
+- **Requirement:** `docs/work/mvp/requirements.md#s-02-capture-a-receipt`
+- **Knowledge:** `docs/knowledge/architecture.md#data-model`, `docs/knowledge/architecture.md#capture-and-process`
+- **Code:** `src/app/page.tsx`, `src/app/api/receipts/route.ts`, `src/server/repo/`, `src/server/identity.ts`, `src/client/compress-image.ts`
+- **Description:** The main page has a button to take a photo or pick one from the library. `src/client/compress-image.ts` re-encodes it to JPEG, longest side at most 2048 px. `POST /api/receipts` (multipart) stores it at `photos/<userId>/<sessionId>/<receiptId>.jpg`, creates the receipt item (`status: processing`) and the `CURRENT_SESSION` item if missing, and increments the session `version`. `src/server/identity.ts` exports `currentUserId()`, returning `LOCAL_USER_ID` until M3. The page lists the session's receipts newest first, each with a thumbnail from a presigned GET URL and its status. An upload failure shows a plain Chinese message and a retry.
+- **Acceptance:** On an iPhone and a Xiaomi phone, a camera photo and a library photo each appear at the top of the list with a thumbnail and the status "processing". The item is in `receipt-pro` and the photo in the bucket. Turning Wi-Fi off mid-upload shows the message and retry works.
+- **Blocks:** T-004 · **Blocked by:** T-001 · **Parallel with:** T-002
+- **Notes:** Test HEIC from an iPhone with default camera settings. Repository functions take `userId` explicitly; nothing reads a global user.
+
+### T-004: Generate the output text
+
+- **Type:** feature
+- **Status:** backlog
+- **Requirement:** `docs/work/mvp/requirements.md#s-03-generate-the-output-text`
+- **Knowledge:** `docs/knowledge/architecture.md#ai-call`, `docs/knowledge/business.md#output`, `docs/knowledge/business.md#unreadable-receipts`
+- **Code:** `src/app/api/receipts/[id]/process/route.ts`, `src/server/ai/`
+- **Description:** After T-003's upload returns, the phone calls `POST /api/receipts/<id>/process`. The server reads `SETTINGS`, builds the prompt (fixed output rules, then template, word list, custom instructions), sends the photo to `deepseek-flash` in JSON mode, and keeps only `text`. Blank or invalid JSON gets one retry, then `status: failed` with a plain `error`. `status: unreadable` shows `看不清，请重拍`. With no template saved, the first `text` becomes `SETTINGS.template`. A receipt in `processing` for more than 2 minutes is reported as `failed`. Every write increments the session `version`.
+- **Acceptance:** Vitest covers the prompt builder and the response parser, including fixtures where the model adds conversational text such as "好，这张弄完了，请发下一张" outside the JSON or inside an extra field: only `text` survives. On a real receipt, the list shows the text in the builder's template. With no template, the first output is saved as the template. An invalid `DEEPSEEK_API_KEY` gives `failed` with a plain message.
+- **Blocks:** T-005, T-009 · **Blocked by:** T-002, T-003 · **Parallel with:** none
+- **Notes:** The DeepSeek key stays on the server. Keep the fixed system prompt in one file so rules can be read in one place.
+
+### T-005: See receipts on the computer and copy the text
+
+- **Type:** feature
+- **Status:** backlog
+- **Requirement:** `docs/work/mvp/requirements.md#s-04-copy-the-text`, `docs/work/mvp/requirements.md#s-05-see-receipts-on-every-device`
+- **Knowledge:** `docs/knowledge/architecture.md#sync`, `docs/records/decisions/ADR-004-sync-by-polling.md`
+- **Code:** `src/app/api/session/route.ts`, `src/client/use-session-poll.ts`, `src/client/copy-text.ts`
+- **Description:** `GET /api/session?since=<version>` returns `{ changed: false }` or the whole session. `use-session-poll.ts` polls every 3 seconds while the page is visible and at once on `visibilitychange`. Each `done` receipt gets a copy button: `navigator.clipboard.writeText`, falling back to a hidden textarea and `document.execCommand('copy')` where the page is not a secure context (the phone over plain HTTP). A short "已复制" message confirms. `unreadable` and `failed` receipts have no copy button.
+- **Acceptance:** A photo taken on the phone appears on the Mac within 5 seconds, then turns from processing to text, with no refresh. Copy on the Mac in Chrome and in Safari, pasted into Word, is identical to the app's text, Chinese included. Copy also works on the phone. A Mac tab left open for 8 hours still receives a new receipt.
+- **Blocks:** T-006, T-010 · **Blocked by:** T-004 · **Parallel with:** none
+
+### T-006: M1 verification with real receipts
+
+- **Type:** qa
+- **Status:** backlog
+- **Requirement:** `docs/work/mvp/requirements.md#success-measures`
+- **Knowledge:** `docs/work/mvp/gaps.md`
+- **Code:** none
+- **Description:** OMT QA runs the M1 definition of done with the builder's real receipts: an evening's batch end to end, reading accuracy (G-004), time per receipt (G-007), no conversational text in any output, Chinese intact in Word.
+- **Acceptance:** `docs/work/mvp/test-plan.md` has the results. G-004 and G-007 are resolved or updated with measurements.
+- **Blocks:** T-007 · **Blocked by:** T-005 · **Parallel with:** none
+
+## M2: Rules, Regenerate, Sessions
+
+### T-007: Add a rule in plain language
+
+- **Type:** feature
+- **Status:** backlog
+- **Requirement:** `docs/work/mvp/requirements.md#s-08-add-a-rule`
+- **Knowledge:** `docs/knowledge/business.md#settings-and-rules`, `docs/knowledge/architecture.md#rules-m2`
+- **Code:** `src/app/api/rules/interpret/route.ts`, `src/app/api/rules/apply/route.ts`, `src/server/rules/`
+- **Description:** An "加规则" button on the main page opens a text box. `POST /api/rules/interpret` sends the text and the current settings to DeepSeek and returns a proposal: `kind` (`template` | `word` | `instruction` | `not_a_rule`), the change, `replaces` (id of the saved item it overrides, if any), and a Chinese explanation. Nothing is saved. The page shows the explanation with Confirm and Cancel. `POST /api/rules/apply` validates the proposal's shape and saves it with a conditional write on `SETTINGS.version`. Same-source word entries and a new template override the old ones. The dialog keeps its own short conversation while open, so the AI can revise a proposal; only the confirmed proposal is saved (ADR-006).
+- **Acceptance:** "以后 Coles 都叫红超市" saves a word entry; the next receipt uses `红超市`. Then "Coles 叫大红超市" says it replaces the old entry and, once confirmed, the next receipt uses `大红超市`. Pasting two or three past outputs gives one summarised template, shown for confirmation; saying "不对，付款方式放在日期后面" in the same dialog revises it before saving. "今天天气怎么样" saves nothing and says it is not a rule. Cancel saves nothing. Existing receipts do not change.
+- **Blocks:** T-008 · **Blocked by:** T-006 · **Parallel with:** T-009
+
+### T-008: See and delete rules
+
+- **Type:** feature
+- **Status:** backlog
+- **Requirement:** `docs/work/mvp/requirements.md#s-09-see-and-delete-rules`
+- **Knowledge:** `docs/knowledge/business.md#settings-and-rules`
+- **Code:** `src/app/rules/page.tsx`, `src/app/api/rules/route.ts`, `src/app/api/rules/[id]/route.ts`
+- **Description:** A rules page, one tap from the main page, lists the template, each word entry, and each custom instruction in plain Chinese. Each has a delete button with confirmation (`DELETE /api/rules/<id>`, conditional on `SETTINGS.version`).
+- **Acceptance:** Every saved rule appears; deleting one removes it, and the next receipt no longer follows it. Deleting the template makes the next first output the template again.
+- **Blocks:** T-011 · **Blocked by:** T-007 · **Parallel with:** T-010
+
+### T-009: Regenerate a receipt
+
+- **Type:** feature
+- **Status:** backlog
+- **Requirement:** `docs/work/mvp/requirements.md#s-07-regenerate`
+- **Knowledge:** `docs/knowledge/business.md#regenerate`
+- **Code:** `src/app/page.tsx`, `src/app/api/receipts/[id]/process/route.ts`
+- **Description:** Every receipt, including `failed` and `unreadable`, gets a "重新生成" button. It sets `status: processing`, increments `attempts`, and calls the same process route with the current settings. The new text replaces the old.
+- **Acceptance:** After adding a rule, regenerating an older receipt applies it; other receipts stay unchanged. Every device shows the receipt as processing, then the new text.
+- **Blocks:** T-010 · **Blocked by:** T-004 · **Parallel with:** T-007
+- **Notes:** Runs before T-010 because both change the receipt list and the receipts repository.
+
+### T-010: New session
+
+- **Type:** feature
+- **Status:** backlog
+- **Requirement:** `docs/work/mvp/requirements.md#s-06-sessions`
+- **Knowledge:** `docs/knowledge/business.md#sessions`, `docs/knowledge/architecture.md#data-model`
+- **Code:** `src/app/api/session/new/route.ts`, `src/server/repo/`
+- **Description:** A "新 session" button asks for confirmation, then `POST /api/session/new` writes a new `CURRENT_SESSION` and deletes the old session's receipts and photos. Deletion is safe to retry: the old session is no longer current, so leftovers never show. A configurable size threshold shows a plain prompt to start a new session (value from G-003).
+- **Acceptance:** Confirming clears the list on every device within 5 seconds, and the old photos are gone from the bucket. Settings are unchanged. Cancel does nothing.
+- **Blocks:** T-011 · **Blocked by:** T-005, T-009 · **Parallel with:** T-008
+
+### T-011: M2 verification and long-use test
+
+- **Type:** qa
+- **Status:** backlog
+- **Requirement:** `docs/work/mvp/requirements.md#non-functional-requirements`
+- **Code:** none
+- **Description:** OMT QA verifies S-06 to S-09, and runs a session of 100 receipts and a tab open for 8 hours. Measures G-003.
+- **Acceptance:** Results in `docs/work/mvp/test-plan.md`. G-003 resolved with a measured value.
+- **Blocks:** T-012 · **Blocked by:** T-008, T-010
+
+## M3: Login and Cloud
+
+### T-012: Username and password login
+
+- **Type:** feature
+- **Status:** backlog
+- **Requirement:** `docs/work/mvp/requirements.md#s-01-log-in`
+- **Knowledge:** `docs/knowledge/business.md#login`, `docs/knowledge/architecture.md#data-model`
+- **Code:** `src/server/identity.ts`, `src/app/login/page.tsx`, `src/middleware.ts`, `scripts/create-user.ts`
+- **Description:** `scripts/create-user.ts` creates the one account (`PROFILE` item with a password hash); there is no sign-up page. The login page sets a signed, HTTP-only cookie that lasts 30 days and renews on use. Middleware rejects every page and API call without it, except the login page. `currentUserId()` reads the cookie instead of `LOCAL_USER_ID`. A log-out action clears it.
+- **Acceptance:** A wrong password gets a plain message. After login, reopening the app does not ask again. Every API route returns 401 without the cookie. Log-out works. The local user's existing data is visible after logging in as that user.
+- **Blocks:** T-013 · **Blocked by:** T-011
+
+### T-013: Deploy to Lambda
+
+- **Type:** setup
+- **Status:** backlog
+- **Requirement:** `docs/work/mvp/requirements.md#technical-constraints`
+- **Knowledge:** `docs/knowledge/architecture.md#lambda-compatibility-rules`, `docs/knowledge/tech-conventions.md#aws-account-safety`
+- **Code:** deployment directory chosen in this task
+- **Description:** Choose the deployment tool and record it as an ADR. Give the Lambda an IAM role with the same narrow access to table `receipt-pro` and the photo bucket as the `receipt-pro` user (ADR-005: one environment, no new table or bucket). Put configuration in the Lambda's environment variables: table name, bucket name, region, account ID, and the DeepSeek key. The key is read at deploy time from a gitignored local file and must never appear in any committed file. `RECEIPT_PRO_AWS_PROFILE` and `LOCAL_USER_ID` are not set on Lambda. Deploy the app to Lambda in the personal account, reachable at the AWS-provided URL over HTTPS.
+- **Acceptance:** The deployed app passes the M1 loop from the phone over mobile data. No resource exists outside the personal account. Idle cost has no always-on component.
+- **Blocks:** T-014 · **Blocked by:** T-012
+- **Notes:** Agreed with the builder on 2026-11-15: before go-live, the builder and Claude together create a separate deployment IAM user in the personal account, with its own key on its own profile (for example `receipt-pro-deploy`, never `receipt-pro`). Claude then deploys with that profile through the CLI. Until then, the Mac holds only the narrow `receipt-pro` key, which cannot create resources.
+
+### T-014: Domain, HTTPS, and home-screen install
+
+- **Type:** setup
+- **Status:** backlog
+- **Requirement:** `docs/work/mvp/requirements.md#non-functional-requirements`
+- **Code:** `src/app/manifest.ts`, app icons, service worker, deployment config
+- **Description:** Point the builder's domain at the deployment with a TLS certificate. Add the web app manifest, icons, and a minimal service worker so the app installs to the home screen and opens full screen.
+- **Acceptance:** On an iPhone and a Xiaomi phone, "add to home screen" installs it; opening it goes straight to the receipt list, full screen.
+- **Blocks:** T-015 · **Blocked by:** T-013, G-005
+
+### T-015: M3 verification in the cloud
+
+- **Type:** qa
+- **Status:** backlog
+- **Requirement:** `docs/work/mvp/requirements.md#success-measures`
+- **Code:** none
+- **Description:** OMT QA reruns the success measures on the deployed app, from the installed home-screen app and the Mac.
+- **Acceptance:** Results in `docs/work/mvp/test-plan.md`; the epic is ready to archive.
+- **Blocked by:** T-014

@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+# Format, lint, and type-check before every commit.
+set -e
+
+# Remember which files are part of this commit before formatting touches the tree.
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+
+pnpm -s format
+
+# Re-add only the staged files that the formatter changed, so the commit keeps its scope.
+if [ -n "$staged" ]; then
+  # shellcheck disable=SC2086 # one path per line, split on purpose
+  changed=$(git diff --name-only -- $staged)
+  if [ -n "$changed" ]; then
+    # shellcheck disable=SC2086
+    git add $changed
+  fi
+fi
+
+pnpm exec concurrently --names lint,type --kill-others-on-fail "pnpm lint" "pnpm type"

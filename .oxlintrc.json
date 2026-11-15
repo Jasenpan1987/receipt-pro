@@ -1,0 +1,143 @@
+{
+  // Lint setup: docs/knowledge/tech-conventions.md#tooling
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["import", "typescript", "react", "jsx-a11y", "react-perf", "nextjs"],
+  "ignorePatterns": [".next/**/*", "dist/**/*", "next-env.d.ts"],
+  "overrides": [
+    {
+      "files": ["src/**/*.{ts,tsx}", "scripts/**/*.ts"],
+      "rules": {
+        "no-unused-vars": [
+          "error",
+          {
+            "args": "none",
+            "ignoreRestSiblings": true,
+            "caughtErrors": "none",
+            "ignoreClassWithStaticInitBlock": true,
+            "reportUsedIgnorePattern": false,
+            "reportVarsOnlyUsedAsTypes": false,
+            "varsIgnorePattern": "^_",
+            "fix": { "imports": "safe-fix", "variables": "off" }
+          }
+        ],
+        "no-sparse-arrays": 0,
+        "no-unsafe-finally": 2,
+        "no-useless-escape": 2,
+        "no-empty": 0,
+        "no-case-declarations": 2,
+        "no-async-promise-executor": 2,
+        "curly": ["error", "all"],
+        "no-return-assign": 2,
+        "no-unneeded-ternary": 2,
+        "yoda": 2,
+        "no-debugger": 2,
+        "no-var": 2,
+        "prefer-const": 2,
+        "no-eval": 2,
+        "no-self-compare": 2,
+        "no-template-curly-in-string": 2,
+        "no-unreachable": 2,
+        "no-constant-condition": 2,
+        "no-throw-literal": 2,
+        "eqeqeq": ["error", "smart"],
+        "no-proto": 2,
+        "no-constructor-return": 2,
+        "no-new-wrappers": 2,
+        "no-iterator": 2,
+        "no-loss-of-precision": 2,
+        "no-nonoctal-decimal-escape": 2,
+        "no-unsafe-optional-chaining": 2,
+        "no-unused-private-class-members": 2,
+        "no-constant-binary-expression": 2,
+        "no-object-constructor": 2,
+        "no-dupe-class-members": 2,
+        "no-this-before-super": 2,
+        "require-yield": 2,
+        "no-prototype-builtins": 2,
+        "no-regex-spaces": 2,
+        "no-sequences": 2,
+        "prefer-rest-params": 2,
+        "prefer-spread": 2,
+        "no-with": 2,
+        "no-labels": 2,
+
+        "typescript/no-explicit-any": 0,
+        "typescript/no-duplicate-enum-values": 0,
+        "typescript/ban-ts-comment": 2,
+        "typescript/no-unsafe-function-type": 2,
+        "typescript/no-unused-expressions": 0,
+        "typescript/no-empty-interface": 2,
+        "typescript/no-non-null-asserted-optional-chain": 2,
+        "typescript/no-empty-object-type": 2,
+        "typescript/consistent-type-imports": 0,
+        "typescript/consistent-type-exports": 0,
+        "typescript/no-require-imports": "error",
+        "typescript/prefer-ts-expect-error": 2,
+        "typescript/no-this-alias": 2,
+        "typescript/prefer-as-const": 2,
+        "typescript/no-unnecessary-boolean-literal-compare": 2,
+        "typescript/no-extraneous-class": 2,
+        "typescript/no-useless-constructor": 2,
+
+        "typescript/await-thenable": "error",
+        "typescript/no-redundant-type-constituents": "error",
+        "typescript/no-floating-promises": 0,
+        "typescript/no-base-to-string": 0,
+        "typescript/unbound-method": 0,
+        "typescript/restrict-template-expressions": 0,
+        "typescript/no-duplicate-type-constituents": 2,
+        "typescript/no-array-delete": 2,
+        "typescript/no-implied-eval": 2,
+        "typescript/require-array-sort-compare": 2,
+        "typescript/no-misused-spread": 0,
+        "typescript/no-useless-default-assignment": 2,
+
+        "import/no-cycle": [2, { "ignoreExternal": true }],
+        "import/no-duplicates": "error",
+        "import/no-self-import": 2,
+        "import/no-default-export": 2,
+
+        "jsx_a11y/click-events-have-key-events": 0,
+        "jsx_a11y/mouse-events-have-key-events": 0,
+        "jsx_a11y/alt-text": 0,
+        "jsx_a11y/anchor-is-valid": 0,
+        "jsx_a11y/anchor-has-content": 0,
+        "jsx_a11y/no-autofocus": 0,
+        "jsx_a11y/label-has-associated-control": 0,
+        "jsx_a11y/tabindex-no-positive": 0,
+        "jsx_a11y/no-static-element-interactions": 0,
+        "jsx_a11y/prefer-tag-over-role": 0,
+
+        "react/jsx-key": 0,
+        "react/exhaustive-deps": 0,
+        "react/rules-of-hooks": 2,
+
+        // React Compiler is not used here, so its diagnostics (on by default with the
+        // react plugin) report nothing actionable. Turn them back on if the compiler is added.
+        "react/error-boundaries": 0,
+        "react/globals": 0,
+        "react/immutability": 0,
+        "react/incompatible-library": 0,
+        "react/preserve-manual-memoization": 0,
+        "react/purity": 0,
+        "react/refs": 0,
+        "react/set-state-in-effect": 0,
+        "react/set-state-in-render": 0,
+        "react/static-components": 0,
+        "react/use-memo": 0,
+        "react/void-use-memo": 0
+      }
+    },
+    {
+      // Next.js requires a default export from these files (App Router file conventions).
+      "files": [
+        "src/app/**/{page,layout,template,loading,error,global-error,not-found,default}.tsx",
+        "src/app/**/{manifest,robots,sitemap}.ts",
+        "src/app/**/{icon,apple-icon,opengraph-image}.tsx"
+      ],
+      "rules": {
+        "import/no-default-export": 0
+      }
+    }
+  ]
+}

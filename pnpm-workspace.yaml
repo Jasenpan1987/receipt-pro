@@ -1,0 +1,26 @@
+# Settings only: this repository is one package, not a workspace.
+# See docs/knowledge/tech-conventions.md#tooling.
+
+blockExoticSubdeps: true
+
+# A release must be one day old before it can be installed.
+minimumReleaseAge: 1440
+
+# Packages that release often and are trusted to install the same day.
+minimumReleaseAgeExclude:
+  - "@aws-sdk/*"
+  - "@smithy/*"
+  - "@oxc-project/*"
+  - "@oxfmt/*"
+  - "@oxlint/*"
+  - "oxlint"
+  - "oxlint-tsgolint"
+  - "oxfmt"
+  - "vite"
+  - "vitest"
+  - "@vitejs/*"
+  - "@vitest/*"
+
+# Which packages may run install scripts. esbuild works from its platform package without one.
+allowBuilds:
+  esbuild: false
