@@ -5,9 +5,10 @@ import { compressImage } from "src/client/compress-image";
 import { copyText } from "src/client/copy-text";
 import { processReceipt } from "src/client/process-receipt";
 import { randomId } from "src/client/random-id";
+import { canRegenerate, statusLabel } from "src/client/receipt-labels";
 import { UploadError, uploadReceipt } from "src/client/upload-receipt";
 import { useSessionPoll } from "src/client/use-session-poll";
-import type { ReceiptStatus, ReceiptView } from "src/shared/api-types";
+import type { ReceiptView } from "src/shared/api-types";
 
 import styles from "./receipts-screen.module.css";
 
@@ -36,13 +37,8 @@ type Card = {
   busy: boolean;
   /** Pending previews are local object URLs; only stored photos can fail to load and need new URLs. */
   stored: boolean;
-};
-
-const STATUS_LABEL: Record<ReceiptStatus, string> = {
-  processing: "处理中…",
-  done: "已完成",
-  unreadable: "看不清，请重拍",
-  failed: "处理失败"
+  /** Offers 重新生成 (S-07). */
+  regenerate: boolean;
 };
 
 /** How long "已复制" stays on the card. */
@@ -57,6 +53,8 @@ export function ReceiptsScreen() {
   // Receipts the server confirmed that the next poll has not delivered yet.
   const [recent, setRecent] = useState<ReceiptView[]>([]);
   const [copied, setCopied] = useState<{ receiptId: string; ok: boolean }>();
+  // Regenerate pressed here; shown at once, before the next poll brings the server's state.
+  const [regenerating, setRegenerating] = useState<Set<string>>(() => new Set());
   const queue = useRef<Promise<void>>(Promise.resolve());
   const pendingRef = useRef<PendingUpload[]>([]);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -164,6 +162,20 @@ export function ReceiptsScreen() {
     });
   }
 
+  // S-07: the same photo with the current settings; the new text replaces the old.
+  function onRegenerate(receiptId: string) {
+    setRegenerating(ids => new Set(ids).add(receiptId));
+    refresh();
+    void processReceipt(receiptId).then(() => {
+      setRegenerating(ids => {
+        const next = new Set(ids);
+        next.delete(receiptId);
+        return next;
+      });
+      refresh();
+    });
+  }
+
   const pendingIds = new Set(pending.map(item => item.receiptId));
   const sessionReceipts = session?.receipts ?? [];
   const sessionIds = new Set(sessionReceipts.map(receipt => receipt.receiptId));
@@ -176,7 +188,8 @@ export function ReceiptsScreen() {
       detail: item.message,
       retry: item.state === "failed" && item.retryable ? item : undefined,
       busy: item.state === "uploading",
-      stored: false
+      stored: false,
+      regenerate: false
     })),
     ...[...recent.filter(receipt => !sessionIds.has(receipt.receiptId)), ...sessionReceipts]
       .filter(receipt => !pendingIds.has(receipt.receiptId))
@@ -184,11 +197,18 @@ export function ReceiptsScreen() {
         receiptId: receipt.receiptId,
         createdAt: receipt.createdAt,
         photoUrl: receipt.photoUrl,
-        label: STATUS_LABEL[receipt.status],
-        text: receipt.status === "done" ? receipt.text : undefined,
-        detail: receipt.status === "failed" ? receipt.error : undefined,
-        busy: receipt.status === "processing",
-        stored: true
+        label: regenerating.has(receipt.receiptId) ? "重新生成中…" : statusLabel(receipt),
+        text:
+          receipt.status === "done" && !regenerating.has(receipt.receiptId)
+            ? receipt.text
+            : undefined,
+        detail:
+          receipt.status === "failed" && !regenerating.has(receipt.receiptId)
+            ? receipt.error
+            : undefined,
+        busy: receipt.status === "processing" || regenerating.has(receipt.receiptId),
+        stored: true,
+        regenerate: canRegenerate(receipt) && !regenerating.has(receipt.receiptId)
       }))
   ].sort(newestFirst);
 
@@ -275,6 +295,15 @@ export function ReceiptsScreen() {
                     </span>
                   )}
                 </div>
+              )}
+              {card.regenerate && (
+                <button
+                  className={styles.secondary}
+                  type="button"
+                  onClick={() => onRegenerate(card.receiptId)}
+                >
+                  重新生成
+                </button>
               )}
               {card.retry && (
                 <button

@@ -10,6 +10,8 @@ export type ReceiptView = {
   /** Short-lived presigned URL; the bucket is never public. */
   photoUrl: string;
   createdAt: string;
+  /** Processing runs started so far; 2 or more while `processing` means regenerating. */
+  attempts: number;
 };
 
 export type SessionView = {

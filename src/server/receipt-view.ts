@@ -21,6 +21,7 @@ export async function toReceiptView(
     text: stuck ? undefined : receipt.text,
     error: stuck ? "处理超时，请重新生成。" : receipt.error,
     photoUrl: await photoUrl(s3, bucket, receipt.photoKey, now),
-    createdAt: receipt.createdAt
+    createdAt: receipt.createdAt,
+    attempts: receipt.attempts
   };
 }

@@ -86,19 +86,14 @@ T-008, but after each other, because both change the receipt list and the receip
 ### T-009: Regenerate a receipt
 
 - **Type:** feature
-- **Status:** ready
-- **Requirement:** `docs/work/mvp/requirements.md#s-07-regenerate`
-- **Knowledge:** `docs/knowledge/business.md#regenerate`
-- **Code:** `src/app/page.tsx`, `src/app/api/receipts/[id]/process/route.ts`
-- **Description:** Every receipt, including `failed` and `unreadable`, gets a "重新生成" button. It sets `status: processing`, increments `attempts`, and calls the same process route with the current settings. The new text replaces the old.
-- **Acceptance:** After adding a rule, regenerating an older receipt applies it; other receipts stay unchanged. Every device shows the receipt as processing, then the new text.
-- **Blocks:** T-010 · **Blocked by:** T-004 · **Parallel with:** T-007
-- **Notes:** Runs before T-010 because both change the receipt list and the receipts repository.
+- **Status:** done (2026-11-15)
+- **Completion:** Every stored receipt that is not processing, `failed` and `unreadable` included, has a "重新生成" button. It calls the same process route, which raises `attempts`, sets `processing`, bumps the version, and reads the photo with the current settings; the new text replaces the old. `attempts` is now in the receipt view, and a run with `attempts` of 2 or more shows "重新生成中…". Verified with Playwright against real AWS and DeepSeek as a `smoke-test-` user: after adding the word entry `通利 → 红超市` directly to settings, regenerating that receipt gave `红超市`, the other receipt stayed unchanged, and the phone page received the new text. Known limit: a rerun takes about 2 s, less than the 3 s poll, so other devices often go straight to the new text without showing "重新生成中…"; the device that pressed the button shows it at once.
+- **Code:** `src/client/receipt-labels.ts`, `src/client/receipts-screen.tsx`, `src/server/receipt-view.ts`
 
 ### T-010: New session
 
 - **Type:** feature
-- **Status:** backlog
+- **Status:** ready
 - **Requirement:** `docs/work/mvp/requirements.md#s-06-sessions`
 - **Knowledge:** `docs/knowledge/business.md#sessions`, `docs/knowledge/architecture.md#data-model`
 - **Code:** `src/app/api/session/new/route.ts`, `src/server/repo/`
