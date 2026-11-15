@@ -2,7 +2,7 @@
 
 > **Purpose:** How the app reaches Lambda, how to set deployment up once, change a secret, roll back, and read logs.
 > **Status:** Current
-> **Verified against:** `deploy/`, `.github/workflows/deploy.yml`, 2026-11-15 (before the first deploy)
+> **Verified against:** the first successful deploy, run `43718373723`, 2026-11-15
 
 Why it is built this way: `docs/records/decisions/ADR-007-deploy-lambda-github-actions.md`.
 
@@ -22,7 +22,7 @@ Done once per AWS account, by the builder, with an administrator in the console.
 
 1. CloudFormation console, region **Asia Pacific (Sydney) ap-southeast-2** → **Create stack** → **With new resources (standard)**.
 2. **Upload a template file** → `deploy/bootstrap.yaml` from the repository.
-3. Stack name `receipt-pro-bootstrap`. Keep the parameter defaults.
+3. Stack name `receipt-pro-bootstrap`. Keep the parameter defaults. `GitHubRepository` is in GitHub's immutable OIDC form, `owner@owner-id/name@repo-id`; for another repository, take it from `gh api repos/<owner>/<name>/actions/oidc/customization/sub` (`sub_claim_prefix`, without `repo:`).
 4. Tick the box that acknowledges that the stack creates IAM resources with custom names, then submit.
 5. When the stack shows `CREATE_COMPLETE`, open **Outputs** and copy `DeployRoleArn`.
 6. GitHub → the repository → Settings → Environments → `production` → add secret `AWS_DEPLOY_ROLE_ARN` with that value.
