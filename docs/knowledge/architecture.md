@@ -18,14 +18,14 @@ The server never holds state between requests, so it fits Lambda unchanged.
 
 ## Components
 
-| Component       | Choice                                                                           | Decision                                                      |
-| --------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| Web app and API | Next.js, App Router, route handlers under `src/app/api/`                         | `docs/knowledge/tech-conventions.md`                          |
-| Data            | DynamoDB, one table, on-demand billing                                           | ADR-003                                                       |
-| Photos          | S3, one private bucket                                                           | ADR-003                                                       |
-| AI              | DeepSeek `deepseek-flash` through the Vercel AI SDK, called only from the server | ADR-001, ADR-006                                              |
-| Sync            | Polling a session version number every 3 seconds while the page is visible       | ADR-004                                                       |
-| Identity        | One built-in user (`LOCAL_USER_ID`) until login lands in M3                      | `docs/records/meetings/2026-11-15_mvp-requirements-review.md` |
+| Component       | Choice                                                                                                                                           | Decision                             |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------ |
+| Web app and API | Next.js, App Router, route handlers under `src/app/api/`                                                                                         | `docs/knowledge/tech-conventions.md` |
+| Data            | DynamoDB, one table, on-demand billing                                                                                                           | ADR-003                              |
+| Photos          | S3, one private bucket                                                                                                                           | ADR-003                              |
+| AI              | DeepSeek `deepseek-flash` through the Vercel AI SDK, called only from the server                                                                 | ADR-001, ADR-006                     |
+| Sync            | Polling a session version number every 3 seconds while the page is visible                                                                       | ADR-004                              |
+| Identity        | Username and password; a signed, HTTP-only cookie (`rp_session`, 30 days, renewed on use) checked by `src/proxy.ts` and again in every API route | T-012                                |
 
 ## Environments
 
