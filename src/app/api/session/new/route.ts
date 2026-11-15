@@ -1,7 +1,7 @@
 import { getAws } from "src/server/aws";
 import { getAwsConfig } from "src/server/config";
 import { errorResponse } from "src/server/http";
-import { currentUserId } from "src/server/identity";
+import { requireUser } from "src/server/identity";
 import { deleteSessionPhotos } from "src/server/photos";
 import { deleteSessionItems, startNewSession } from "src/server/repo/sessions";
 import { getStore } from "src/server/repo/store";
@@ -13,9 +13,13 @@ import type { NewSessionResponse } from "src/shared/api-types";
  * fails, the data stays hidden (it is not current) and the next new session retries it.
  */
 export async function POST(): Promise<Response> {
+  const auth = await requireUser();
+  if ("response" in auth) {
+    return auth.response;
+  }
+  const { userId } = auth;
   try {
     const store = getStore();
-    const userId = currentUserId();
     const { session, previous } = await startNewSession(store, userId);
 
     const stale = [previous?.sessionId, previous?.previousSessionId].filter((id): id is string =>

@@ -1,6 +1,6 @@
 import { DEFAULT_TEMPLATE } from "src/server/ai/system-prompt";
 import { errorResponse } from "src/server/http";
-import { currentUserId } from "src/server/identity";
+import { requireUser } from "src/server/identity";
 import { getSettings } from "src/server/repo/settings";
 import { getStore } from "src/server/repo/store";
 import type { RulesView } from "src/shared/api-types";
@@ -9,8 +9,13 @@ export const dynamic = "force-dynamic";
 
 /** S-09: every saved rule. */
 export async function GET(): Promise<Response> {
+  const auth = await requireUser();
+  if ("response" in auth) {
+    return auth.response;
+  }
+  const { userId } = auth;
   try {
-    const settings = await getSettings(getStore(), currentUserId());
+    const settings = await getSettings(getStore(), userId);
     const view: RulesView = {
       version: settings.version,
       template: settings.template?.text,

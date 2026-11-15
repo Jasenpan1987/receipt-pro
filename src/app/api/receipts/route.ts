@@ -1,7 +1,7 @@
 import { getAws } from "src/server/aws";
 import { getAwsConfig } from "src/server/config";
 import { errorResponse } from "src/server/http";
-import { currentUserId } from "src/server/identity";
+import { requireUser } from "src/server/identity";
 import { photoKey, putPhoto } from "src/server/photos";
 import { toReceiptView } from "src/server/receipt-view";
 import { createReceipt } from "src/server/repo/receipts";
@@ -15,6 +15,11 @@ import type { CreateReceiptResponse } from "src/shared/api-types";
  * the same `receiptId` and `createdAt` returns the same receipt (200) instead of a new one (201).
  */
 export async function POST(request: Request): Promise<Response> {
+  const auth = await requireUser();
+  if ("response" in auth) {
+    return auth.response;
+  }
+  const { userId } = auth;
   let form: FormData;
   try {
     form = await request.formData();
@@ -28,7 +33,6 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const { receiptId, createdAt, photo } = parsed.value;
-    const userId = currentUserId();
     const store = getStore();
     const { s3 } = getAws();
     const { bucketName } = getAwsConfig();

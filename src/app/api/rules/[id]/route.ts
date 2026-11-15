@@ -1,5 +1,5 @@
 import { errorResponse } from "src/server/http";
-import { currentUserId } from "src/server/identity";
+import { requireUser } from "src/server/identity";
 import { getSettings, saveSettings, SettingsChangedError } from "src/server/repo/settings";
 import { getStore } from "src/server/repo/store";
 import { removeRule } from "src/server/rules/apply-rule";
@@ -12,6 +12,11 @@ export async function DELETE(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ): Promise<Response> {
+  const auth = await requireUser();
+  if ("response" in auth) {
+    return auth.response;
+  }
+  const { userId } = auth;
   const { id } = await context.params;
   const version = Number(new URL(request.url).searchParams.get("version"));
   if (!Number.isInteger(version) || version < 1) {
@@ -19,7 +24,6 @@ export async function DELETE(
   }
   try {
     const store = getStore();
-    const userId = currentUserId();
     const settings = await getSettings(store, userId);
     if (settings.version !== version) {
       return errorResponse(409, "规则刚被改过，请刷新后再删除。");

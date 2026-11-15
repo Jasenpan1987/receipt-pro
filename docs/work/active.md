@@ -11,4 +11,4 @@
 **Why:** it is the only epic; the MVP loop comes before everything else.
 **Primary code:** `src/app/`, `src/client/`, `src/server/`.
 
-Next: T-012 (login). T-006 and T-011, the M1 and M2 verifications, wait for the builder in one sitting. Done on 2026-11-15: T-001 to T-005, T-007 to T-010.
+Next: the builder's sitting for T-006 and T-011 (local verification, with the real account from T-012), and T-013 (deploy), which needs a deployment key made with the builder. Done on 2026-11-15: T-001 to T-005, T-007 to T-010, T-012.

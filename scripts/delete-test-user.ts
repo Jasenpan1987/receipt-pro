@@ -1,4 +1,4 @@
-// Deletes a test user's current session, receipts, settings, and photos. Refuses any user whose ID does
+// Deletes a test user's current session, receipts, settings, login account, and photos. Refuses any user whose ID does
 // not start with "smoke-test-", so the real user's data cannot be deleted by mistake.
 //
 //   LOCAL_USER_ID=smoke-test-<uuid> pnpm exec tsx --env-file=.env.local scripts/delete-test-user.ts
@@ -11,6 +11,7 @@ import { getAws } from "src/server/aws";
 import { getAwsConfig } from "src/server/config";
 import { CURRENT_SESSION_SK, getCurrentSession, userPk } from "src/server/repo/sessions";
 import { getStore } from "src/server/repo/store";
+import { deleteUser } from "src/server/repo/users";
 
 const TEST_PREFIX = "smoke-test-";
 
@@ -56,6 +57,10 @@ async function main() {
   await db.send(
     new DeleteCommand({ TableName: tableName, Key: { PK: userPk(userId), SK: "SETTINGS" } })
   );
+  items++;
+
+  // The login account, if the test made one (T-012).
+  await deleteUser(getStore(), userId);
   items++;
 
   let photos = 0;

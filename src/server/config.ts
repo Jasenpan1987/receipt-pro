@@ -14,7 +14,10 @@ export type AwsConfig = {
 export type Config = {
   aws: AwsConfig;
   deepseekApiKey: string;
-  localUserId: string;
+  /** Signs the login cookie (T-012). At least 32 characters. */
+  sessionSecret: string;
+  /** Only `scripts/create-user.ts` uses it, as the default user ID (T-012). */
+  localUserId?: string;
 };
 
 type Env = Record<string, string | undefined>;
@@ -31,7 +34,7 @@ const AWS_VARIABLES = [
   "BUCKET_NAME"
 ] as const;
 
-const APP_VARIABLES = ["DEEPSEEK_API_KEY", "LOCAL_USER_ID"] as const;
+const APP_VARIABLES = ["DEEPSEEK_API_KEY", "SESSION_SECRET"] as const;
 
 /** Reads every name, then reports all missing ones in one message. Blank counts as missing. */
 function readRequired<Name extends string>(env: Env, names: readonly Name[]): Record<Name, string> {
@@ -81,10 +84,14 @@ export function parseAwsConfig(env: Env): AwsConfig {
 
 export function parseConfig(env: Env): Config {
   const values = readRequired(env, [...AWS_VARIABLES, ...APP_VARIABLES]);
+  if (values.SESSION_SECRET.length < 32) {
+    throw new ConfigError("SESSION_SECRET must be at least 32 characters.");
+  }
   return {
     aws: toAwsConfig(values),
     deepseekApiKey: values.DEEPSEEK_API_KEY,
-    localUserId: values.LOCAL_USER_ID
+    sessionSecret: values.SESSION_SECRET,
+    localUserId: env.LOCAL_USER_ID?.trim() || undefined
   };
 }
 

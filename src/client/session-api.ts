@@ -15,6 +15,10 @@ export async function pollSession(since?: {
     cache: "no-store",
     signal: AbortSignal.timeout(POLL_TIMEOUT_MS)
   });
+  if (response.status === 401) {
+    // The login ran out (30 days without use) or was cleared: back to the login page.
+    window.location.replace("/login");
+  }
   if (!response.ok) {
     throw new Error(`GET /api/session returned ${response.status}`);
   }

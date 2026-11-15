@@ -63,6 +63,8 @@ Reproduce: a minimal `src/app/layout.tsx` and `page.tsx` with `next@16.4.6`,
 - `next dev` stops at start with the name of any missing variable (`src/instrumentation.ts`), so `DEEPSEEK_API_KEY` must be in `.env.local` before `pnpm dev` runs.
 - After a long run with many edited and deleted files, `next dev` 16.4 (Turbopack) once went into a reload loop: the log repeated `✓ Compiled in 2ms` and `GET / 200` with no file changing, and the page's fetches were cancelled. Restarting `pnpm dev` fixed it (2026-11-15).
 
+- Next.js 16 renamed `middleware.ts` to `proxy.ts` (export `proxy`). It runs on the Node.js runtime by default, so `node:crypto` works there. The docs advise checking authentication in each route as well; every API route calls `requireUser()` (`src/server/identity.ts`).
+
 ### Browser Rules Found in T-003
 
 - The phone uses the dev server over plain HTTP, which is not a secure context: `crypto.randomUUID` and `navigator.clipboard` do not exist there. IDs come from `src/client/random-id.ts` (`crypto.getRandomValues`).

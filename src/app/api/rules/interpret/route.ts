@@ -1,6 +1,6 @@
 import { getModel } from "src/server/ai/model";
 import { errorResponse } from "src/server/http";
-import { currentUserId } from "src/server/identity";
+import { requireUser } from "src/server/identity";
 import { getSettings } from "src/server/repo/settings";
 import type { Settings } from "src/server/repo/settings";
 import { getStore } from "src/server/repo/store";
@@ -27,13 +27,18 @@ function replacing(settings: Settings, proposal: RuleProposal): string | undefin
 
 /** S-08: plain language in, a proposed rule and its explanation out. Saves nothing. */
 export async function POST(request: Request): Promise<Response> {
+  const auth = await requireUser();
+  if ("response" in auth) {
+    return auth.response;
+  }
+  const { userId } = auth;
   const body = (await request.json().catch(() => undefined)) as { messages?: unknown } | undefined;
   const messages = toMessages(body?.messages);
   if (!messages) {
     return errorResponse(400, "请先写下规则，再发送。");
   }
   try {
-    const settings = await getSettings(getStore(), currentUserId());
+    const settings = await getSettings(getStore(), userId);
     const proposal = withReplaces(
       settings,
       await interpretRule({ model: getModel(), system: buildInterpretPrompt(settings), messages })

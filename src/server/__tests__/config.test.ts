@@ -8,6 +8,7 @@ const fullEnv = {
   TABLE_NAME: "receipt-pro",
   BUCKET_NAME: "receipt-pro-photos-test",
   DEEPSEEK_API_KEY: "sk-test",
+  SESSION_SECRET: "s".repeat(32),
   LOCAL_USER_ID: "user-1"
 };
 
@@ -22,6 +23,7 @@ describe("parseConfig", () => {
         bucketName: "receipt-pro-photos-test"
       },
       deepseekApiKey: "sk-test",
+      sessionSecret: "s".repeat(32),
       localUserId: "user-1"
     });
   });
@@ -35,9 +37,9 @@ describe("parseConfig", () => {
   });
 
   it("names every missing variable at once", () => {
-    const { TABLE_NAME: _t, LOCAL_USER_ID: _l, ...env } = fullEnv;
+    const { TABLE_NAME: _t, SESSION_SECRET: _l, ...env } = fullEnv;
     expect(() => parseConfig(env)).toThrow(
-      "Missing environment variables: TABLE_NAME, LOCAL_USER_ID. Set them in .env.local (see .env.example)."
+      "Missing environment variables: TABLE_NAME, SESSION_SECRET. Set them in .env.local (see .env.example)."
     );
   });
 
@@ -53,6 +55,17 @@ describe("parseConfig", () => {
     );
   });
 
+  it("refuses a session secret shorter than 32 characters", () => {
+    expect(() => parseConfig({ ...fullEnv, SESSION_SECRET: "short" })).toThrow(
+      "SESSION_SECRET must be at least 32 characters."
+    );
+  });
+
+  it("does not need LOCAL_USER_ID", () => {
+    const { LOCAL_USER_ID: _, ...env } = fullEnv;
+    expect(parseConfig(env).localUserId).toBeUndefined();
+  });
+
   // The shell may set AWS_PROFILE to another profile; it must never decide the app's profile.
   it("ignores AWS_PROFILE", () => {
     const config = parseConfig({ ...fullEnv, AWS_PROFILE: "another-profile" });
@@ -62,8 +75,8 @@ describe("parseConfig", () => {
 
 describe("parseAwsConfig", () => {
   // `pnpm check:aws` must run before the builder has added the DeepSeek key.
-  it("does not need the DeepSeek key or the local user", () => {
-    const { DEEPSEEK_API_KEY: _d, LOCAL_USER_ID: _l, ...env } = fullEnv;
+  it("does not need the DeepSeek key or the session secret", () => {
+    const { DEEPSEEK_API_KEY: _d, SESSION_SECRET: _l, ...env } = fullEnv;
     expect(parseAwsConfig(env).accountId).toBe("111111111111");
   });
 

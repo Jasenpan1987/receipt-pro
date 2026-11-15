@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { errorResponse } from "src/server/http";
-import { currentUserId } from "src/server/identity";
+import { requireUser } from "src/server/identity";
 import { getSettings, saveSettings, SettingsChangedError } from "src/server/repo/settings";
 import { getStore } from "src/server/repo/store";
 import { applyProposal, withReplaces } from "src/server/rules/apply-rule";
@@ -13,6 +13,11 @@ import { toProposal } from "src/server/rules/proposal";
  * Existing receipts do not change; the rule applies from the next run.
  */
 export async function POST(request: Request): Promise<Response> {
+  const auth = await requireUser();
+  if ("response" in auth) {
+    return auth.response;
+  }
+  const { userId } = auth;
   const body = (await request.json().catch(() => undefined)) as
     | { proposal?: unknown; version?: unknown }
     | undefined;
@@ -29,7 +34,6 @@ export async function POST(request: Request): Promise<Response> {
   }
   try {
     const store = getStore();
-    const userId = currentUserId();
     const settings = await getSettings(store, userId);
     if (settings.version !== version) {
       return errorResponse(409, "规则刚被改过，请重新发送一次再确认。");

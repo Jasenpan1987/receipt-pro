@@ -4,7 +4,7 @@ import { buildSystemPrompt, DEFAULT_TEMPLATE } from "src/server/ai/system-prompt
 import { getAws } from "src/server/aws";
 import { getAwsConfig } from "src/server/config";
 import { errorResponse } from "src/server/http";
-import { currentUserId } from "src/server/identity";
+import { requireUser } from "src/server/identity";
 import { getPhoto } from "src/server/photos";
 import {
   findReceipt,
@@ -60,10 +60,14 @@ export async function POST(
   _request: Request,
   context: { params: Promise<{ id: string }> }
 ): Promise<Response> {
+  const auth = await requireUser();
+  if ("response" in auth) {
+    return auth.response;
+  }
+  const { userId } = auth;
   const { id } = await context.params;
   try {
     const store = getStore();
-    const userId = currentUserId();
     const session = await getCurrentSession(store, userId);
     const receipt = session ? await findReceipt(store, session.sessionId, id) : undefined;
     if (!receipt) {

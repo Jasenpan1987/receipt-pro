@@ -22,6 +22,16 @@
   font-size: 1.25rem;
 }
 
+.logout {
+  margin-left: auto;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid #5f6368;
+  border-radius: 0.5rem;
+  background: #fff;
+  color: #5f6368;
+  font-size: 0.95rem;
+}
+
 .section {
   margin-bottom: 1.5rem;
 }

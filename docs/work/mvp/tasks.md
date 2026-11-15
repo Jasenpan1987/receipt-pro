@@ -56,7 +56,7 @@ T-008, but after each other, because both change the receipt list and the receip
 - **Code:** none
 - **Description:** OMT QA runs the M1 definition of done with the builder's real receipts: an evening's batch end to end, reading accuracy (G-004), time per receipt (G-007), no conversational text in any output, Chinese intact in Word.
 - **Acceptance:** `docs/work/mvp/test-plan.md` has the results. G-004 and G-007 are resolved or updated with measurements.
-- **Notes:** Builder, 2026-11-15: manual checks are done in one sitting here, not during tasks. Collected so far: copy on the iPhone and paste into Notes (T-005); a photo from the iPhone appears on the Mac with no refresh (T-005). Edge cases and the Xiaomi phone stay on T-015.
+- **Notes:** Builder, 2026-11-15: manual checks are done in one sitting here, not during tasks. Collected so far: create the real login account with `pnpm exec tsx --env-file=.env.local scripts/create-user.ts` in the builder's own Terminal, then log in on the iPhone and the Mac (T-012); copy on the iPhone and paste into Notes (T-005); a photo from the iPhone appears on the Mac with no refresh (T-005). Edge cases and the Xiaomi phone stay on T-015.
 - **Blocks:** T-007 · **Blocked by:** T-005 · **Parallel with:** none
 
 ## M2: Rules, Regenerate, Sessions
@@ -105,13 +105,9 @@ T-008, but after each other, because both change the receipt list and the receip
 ### T-012: Username and password login
 
 - **Type:** feature
-- **Status:** backlog
-- **Requirement:** `docs/work/mvp/requirements.md#s-01-log-in`
-- **Knowledge:** `docs/knowledge/business.md#login`, `docs/knowledge/architecture.md#data-model`
-- **Code:** `src/server/identity.ts`, `src/app/login/page.tsx`, `src/middleware.ts`, `scripts/create-user.ts`
-- **Description:** `scripts/create-user.ts` creates the one account (`PROFILE` item with a password hash); there is no sign-up page. The login page sets a signed, HTTP-only cookie that lasts 30 days and renews on use. Middleware rejects every page and API call without it, except the login page. `currentUserId()` reads the cookie instead of `LOCAL_USER_ID`. A log-out action clears it.
-- **Acceptance:** A wrong password gets a plain message. After login, reopening the app does not ask again. Every API route returns 401 without the cookie. Log-out works. The local user's existing data is visible after logging in as that user.
-- **Blocks:** T-013 · **Blocked by:** T-011
+- **Status:** done (2026-11-15; built before T-006 and T-011 by the builder's choice)
+- **Completion:** `scripts/create-user.ts` makes the one account in the builder's own Terminal (hidden password, at least 8 characters), keeping `LOCAL_USER_ID` as the user ID so earlier data stays visible; it writes a `PROFILE` item and a `USERNAME#<name>` lookup item in one transaction. Passwords are `scrypt`-hashed. `/login` sets `rp_session`: a signed token (HMAC-SHA256 with `SESSION_SECRET`), HTTP-only, SameSite=Lax, 30 days, `Secure` on HTTPS, re-issued once a day of use. `src/proxy.ts` sends pages without it to `/login` and answers API calls with 401; every API route checks the user again itself. 10 wrong passwords in a row lock the account for 15 minutes; an unknown user and a wrong password get the same message. "退出登录" is on the rules page. Verified with 148 unit tests (suite total) and against real AWS: all 8 API routes answer 401 without a cookie or with a forged one; in WebKit over plain HTTP, a wrong password was refused, the right one showed a receipt stored before the account existed, a reopened page stayed logged in, an upload worked, and log-out brought 401 back; 10 wrong passwords locked out even the right one. Pending for the builder's sitting: create the real account with the script, and log in on the iPhone and the Mac.
+- **Code:** `src/server/auth/`, `src/proxy.ts`, `src/server/identity.ts`, `src/server/repo/users.ts`, `src/app/login/page.tsx`, `src/app/api/auth/`, `scripts/create-user.ts`
 
 ### T-013: Deploy to Lambda
 
@@ -123,7 +119,7 @@ T-008, but after each other, because both change the receipt list and the receip
 - **Description:** Choose the deployment tool and record it as an ADR. Give the Lambda an IAM role with the same narrow access to table `receipt-pro` and the photo bucket as the `receipt-pro` user (ADR-005: one environment, no new table or bucket). Put configuration in the Lambda's environment variables: table name, bucket name, region, account ID, and the DeepSeek key. The key is read at deploy time from a gitignored local file and must never appear in any committed file. `RECEIPT_PRO_AWS_PROFILE` and `LOCAL_USER_ID` are not set on Lambda. Deploy the app to Lambda in the personal account, reachable at the AWS-provided URL over HTTPS.
 - **Acceptance:** The deployed app passes the M1 loop from the phone over mobile data. No resource exists outside the personal account. Idle cost has no always-on component.
 - **Blocks:** T-014 · **Blocked by:** T-012
-- **Notes:** Agreed with the builder on 2026-11-15: before go-live, the builder and Claude together create a separate deployment IAM user in the personal account, with its own key on its own profile (for example `receipt-pro-deploy`, never `receipt-pro`). Claude then deploys with that profile through the CLI. Until then, the Mac holds only the narrow `receipt-pro` key, which cannot create resources.
+- **Notes:** From T-012: set `SESSION_SECRET` (32+ random characters, kept out of git) in the Lambda environment; `LOCAL_USER_ID` stays unset there. The cookie turns `Secure` automatically behind HTTPS (`x-forwarded-proto`). Agreed with the builder on 2026-11-15: before go-live, the builder and Claude together create a separate deployment IAM user in the personal account, with its own key on its own profile (for example `receipt-pro-deploy`, never `receipt-pro`). Claude then deploys with that profile through the CLI. Until then, the Mac holds only the narrow `receipt-pro` key, which cannot create resources.
 
 ### T-014: Domain, HTTPS, and home-screen install
 

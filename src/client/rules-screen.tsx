@@ -26,6 +26,11 @@ export function RulesScreen() {
     void load();
   }, [load]);
 
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+    window.location.replace("/login");
+  }
+
   async function remove(id: string, what: string) {
     if (
       !rules ||
@@ -51,6 +56,9 @@ export function RulesScreen() {
           ← 返回
         </Link>
         <h1 className={styles.title}>规则</h1>
+        <button className={styles.logout} type="button" onClick={() => void logout()}>
+          退出登录
+        </button>
       </header>
 
       {error && (

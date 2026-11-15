@@ -1,7 +1,7 @@
 import { getAws } from "src/server/aws";
 import { getAwsConfig } from "src/server/config";
 import { errorResponse } from "src/server/http";
-import { currentUserId } from "src/server/identity";
+import { requireUser } from "src/server/identity";
 import { toReceiptView } from "src/server/receipt-view";
 import { listReceipts } from "src/server/repo/receipts";
 import { getCurrentSession } from "src/server/repo/sessions";
@@ -17,10 +17,15 @@ export const dynamic = "force-dynamic";
  * current session, receipts newest first. Without `since`, always the whole session.
  */
 export async function GET(request: Request): Promise<Response> {
+  const auth = await requireUser();
+  if ("response" in auth) {
+    return auth.response;
+  }
+  const { userId } = auth;
   try {
     const store = getStore();
     const since = parseSince(new URL(request.url).searchParams);
-    const session = await getCurrentSession(store, currentUserId());
+    const session = await getCurrentSession(store, userId);
     const current = { sessionId: session?.sessionId ?? null, version: session?.version ?? 0 };
     if (isUnchanged(current, since)) {
       return Response.json({ changed: false } satisfies SessionPoll);
