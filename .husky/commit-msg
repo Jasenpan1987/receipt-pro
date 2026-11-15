@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+# Machine-local checks that stay out of git, if this machine has any.
+set -e
+if [ -x docs/local/hooks/commit-msg ]; then
+  docs/local/hooks/commit-msg "$1"
+fi

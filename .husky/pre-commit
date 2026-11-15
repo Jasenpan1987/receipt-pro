@@ -2,6 +2,11 @@
 # Format, lint, and type-check before every commit.
 set -e
 
+# Machine-local checks that stay out of git, if this machine has any.
+if [ -x docs/local/hooks/pre-commit ]; then
+  docs/local/hooks/pre-commit
+fi
+
 # Remember which files are part of this commit before formatting touches the tree.
 staged=$(git diff --cached --name-only --diff-filter=ACMR)
 
