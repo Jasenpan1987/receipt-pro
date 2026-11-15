@@ -49,6 +49,15 @@ function jsonObjects(reply: string): unknown[] {
   return found;
 }
 
+/** The reply's only JSON object, or `undefined` when there is none or more than one. */
+export function singleJsonObject(reply: string): Record<string, unknown> | undefined {
+  const objects = jsonObjects(reply);
+  const value = objects.length === 1 ? objects[0] : undefined;
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
 /**
  * The reading, or `undefined` when the reply cannot be trusted. Exactly one JSON object is
  * accepted, and any text around it is dropped. Two or more objects (seen in T-002: an answer,
@@ -56,12 +65,8 @@ function jsonObjects(reply: string): unknown[] {
  * fields are ignored; only `status` and `text` are read.
  */
 export function parseReading(reply: string): Reading | undefined {
-  const objects = jsonObjects(reply);
-  if (objects.length !== 1) {
-    return undefined;
-  }
-  const value = objects[0] as { status?: unknown; text?: unknown };
-  if (value === null || typeof value !== "object") {
+  const value = singleJsonObject(reply);
+  if (!value) {
     return undefined;
   }
   if (value.status === "unreadable") {

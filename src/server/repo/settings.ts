@@ -75,3 +75,58 @@ export async function saveTemplateIfMissing(
     throw error;
   }
 }
+
+/** The settings changed since they were read (another device saved a rule). */
+export class SettingsChangedError extends Error {
+  override name = "SettingsChangedError";
+}
+
+/**
+ * Writes template, words, and instructions, and raises the version, only if the version is still
+ * `expectedVersion` (0: no settings item yet). Throws SettingsChangedError otherwise.
+ */
+export async function saveSettings(
+  store: Store,
+  userId: string,
+  settings: Pick<Settings, "template" | "words" | "instructions">,
+  expectedVersion: number
+): Promise<void> {
+  const names: Record<string, string> = {
+    "#words": "words",
+    "#instructions": "instructions",
+    "#version": "version",
+    "#template": "template"
+  };
+  const values: Record<string, unknown> = {
+    ":words": settings.words,
+    ":instructions": settings.instructions,
+    ":next": expectedVersion + 1
+  };
+  const set = ["#words = :words", "#instructions = :instructions", "#version = :next"];
+  if (settings.template) {
+    set.push("#template = :template");
+    values[":template"] = settings.template;
+  }
+  let condition = "attribute_not_exists(PK)";
+  if (expectedVersion > 0) {
+    condition = "#version = :expected";
+    values[":expected"] = expectedVersion;
+  }
+  try {
+    await store.db.send(
+      new UpdateCommand({
+        TableName: store.tableName,
+        Key: { PK: userPk(userId), SK: SETTINGS_SK },
+        UpdateExpression: `SET ${set.join(", ")}${settings.template ? "" : " REMOVE #template"}`,
+        ConditionExpression: condition,
+        ExpressionAttributeNames: names,
+        ExpressionAttributeValues: values
+      })
+    );
+  } catch (error) {
+    if (errorName(error) === "ConditionalCheckFailedException") {
+      throw new SettingsChangedError("The settings changed since they were read.");
+    }
+    throw error;
+  }
+}

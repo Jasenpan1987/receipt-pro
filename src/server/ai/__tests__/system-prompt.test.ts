@@ -44,6 +44,13 @@ describe("buildSystemPrompt", () => {
     expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 
+  // T-007: a template that moves the payment method must win over any default order.
+  it("takes the order of fields from the template, not from a fixed order", () => {
+    const prompt = buildSystemPrompt(empty);
+    expect(prompt).toContain("各项的顺序、分隔和格式一律照模板");
+    expect(prompt).not.toContain("日期 商家 商品和金额 共总额，付款方式");
+  });
+
   it("leaves out empty word lists and instructions", () => {
     const prompt = buildSystemPrompt(empty);
     expect(prompt).not.toContain("词表（");

@@ -7,6 +7,7 @@ import { startNewSession } from "src/client/new-session";
 import { processReceipt } from "src/client/process-receipt";
 import { randomId } from "src/client/random-id";
 import { canRegenerate, statusLabel } from "src/client/receipt-labels";
+import { RuleDialog } from "src/client/rule-dialog";
 import { UploadError, uploadReceipt } from "src/client/upload-receipt";
 import { useSessionPoll } from "src/client/use-session-poll";
 import type { ReceiptView } from "src/shared/api-types";
@@ -58,6 +59,9 @@ export function ReceiptsScreen() {
   // Regenerate pressed here; shown at once, before the next poll brings the server's state.
   const [regenerating, setRegenerating] = useState<Set<string>>(() => new Set());
   const [clearing, setClearing] = useState(false);
+  const [addingRule, setAddingRule] = useState(false);
+  const [ruleSaved, setRuleSaved] = useState(false);
+  const ruleSavedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const queue = useRef<Promise<void>>(Promise.resolve());
   const pendingRef = useRef<PendingUpload[]>([]);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -73,6 +77,7 @@ export function ReceiptsScreen() {
         URL.revokeObjectURL(item.previewUrl);
       }
       clearTimeout(copiedTimer.current);
+      clearTimeout(ruleSavedTimer.current);
     },
     []
   );
@@ -196,6 +201,15 @@ export function ReceiptsScreen() {
     }
   }
 
+  function onRuleDialogClose(saved: boolean) {
+    setAddingRule(false);
+    if (saved) {
+      setRuleSaved(true);
+      clearTimeout(ruleSavedTimer.current);
+      ruleSavedTimer.current = setTimeout(() => setRuleSaved(false), 4_000);
+    }
+  }
+
   const pendingIds = new Set(pending.map(item => item.receiptId));
   const sessionReceipts = session?.receipts ?? [];
   const sessionIds = new Set(sessionReceipts.map(receipt => receipt.receiptId));
@@ -237,6 +251,9 @@ export function ReceiptsScreen() {
       <header className={styles.header}>
         <div className={styles.titleRow}>
           <h1 className={styles.title}>receipt-pro</h1>
+          <button className={styles.addRule} type="button" onClick={() => setAddingRule(true)}>
+            加规则
+          </button>
           <button
             className={styles.newSession}
             type="button"
@@ -278,6 +295,12 @@ export function ReceiptsScreen() {
           </button>
         </div>
       )}
+      {ruleSaved && (
+        <p className={styles.saved} role="status">
+          规则已保存，从下一张小票开始生效。已有的小票可以点“重新生成”。
+        </p>
+      )}
+      {addingRule && <RuleDialog onClose={onRuleDialogClose} />}
       {sessionReceipts.length >= SESSION_SIZE_PROMPT && (
         <p className={styles.notice}>
           这一批已经有 {sessionReceipts.length} 张小票了。复制完以后，可以点“新

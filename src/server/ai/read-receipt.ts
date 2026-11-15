@@ -38,7 +38,8 @@ const schema = jsonSchema<{ status: string; text: string }>({
   required: ["status", "text"]
 });
 
-function failureMessage(error: unknown): string {
+/** A plain Chinese message for a failed DeepSeek call. */
+export function failureMessage(error: unknown): string {
   const cause = RetryError.isInstance(error) ? error.lastError : error;
   if (APICallError.isInstance(cause)) {
     switch (cause.statusCode) {

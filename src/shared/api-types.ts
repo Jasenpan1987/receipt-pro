@@ -34,3 +34,25 @@ export type NewSessionResponse = { sessionId: string; cleaned: boolean };
 
 /** Every API error. `error` is a plain Chinese message the page can show as is. */
 export type ApiError = { error: string };
+
+/** What the Add rule dialog proposes. Nothing is saved until the user confirms (S-08). */
+export type RuleProposal =
+  | { kind: "word"; source: string; target: string; replaces?: string; explanation: string }
+  | { kind: "template"; text: string; replaces?: string; explanation: string }
+  | { kind: "instruction"; text: string; replaces?: string; explanation: string }
+  | { kind: "not_a_rule"; explanation: string };
+
+/** One turn of the dialog's own short conversation; discarded when the dialog closes. */
+export type RuleMessage = { role: "user" | "assistant"; text: string };
+
+export type InterpretRuleRequest = { messages: RuleMessage[] };
+
+/** `version` is the settings version the proposal was made against; apply checks it. */
+export type InterpretRuleResponse = {
+  proposal: RuleProposal;
+  version: number;
+  /** The saved rule this one replaces, in plain words, if any. */
+  replacing?: string;
+};
+
+export type ApplyRuleRequest = { proposal: RuleProposal; version: number };

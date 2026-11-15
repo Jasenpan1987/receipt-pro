@@ -64,18 +64,14 @@ T-008, but after each other, because both change the receipt list and the receip
 ### T-007: Add a rule in plain language
 
 - **Type:** feature
-- **Status:** backlog
-- **Requirement:** `docs/work/mvp/requirements.md#s-08-add-a-rule`
-- **Knowledge:** `docs/knowledge/business.md#settings-and-rules`, `docs/knowledge/architecture.md#rules-m2`
-- **Code:** `src/app/api/rules/interpret/route.ts`, `src/app/api/rules/apply/route.ts`, `src/server/rules/`
-- **Description:** An "加规则" button on the main page opens a text box. `POST /api/rules/interpret` sends the text and the current settings to DeepSeek and returns a proposal: `kind` (`template` | `word` | `instruction` | `not_a_rule`), the change, `replaces` (id of the saved item it overrides, if any), and a Chinese explanation. Nothing is saved. The page shows the explanation with Confirm and Cancel. `POST /api/rules/apply` validates the proposal's shape and saves it with a conditional write on `SETTINGS.version`. Same-source word entries and a new template override the old ones. The dialog keeps its own short conversation while open, so the AI can revise a proposal; only the confirmed proposal is saved (ADR-006).
-- **Acceptance:** "以后 Coles 都叫红超市" saves a word entry; the next receipt uses `红超市`. Then "Coles 叫大红超市" says it replaces the old entry and, once confirmed, the next receipt uses `大红超市`. Pasting two or three past outputs gives one summarised template, shown for confirmation; saying "不对，付款方式放在日期后面" in the same dialog revises it before saving. "今天天气怎么样" saves nothing and says it is not a rule. Cancel saves nothing. Existing receipts do not change.
-- **Blocks:** T-008 · **Blocked by:** T-006 · **Parallel with:** T-009
+- **Status:** done (2026-11-15; done before T-006 because the builder batches manual verification at the end)
+- **Completion:** "加规则" in the header opens a dialog. `POST /api/rules/interpret` sends the dialog's own short conversation and the current settings to `deepseek-flash` and returns a checked proposal (word, template, instruction, or not a rule) with a plain explanation; it saves nothing. Which saved rule a proposal replaces is decided in code and shown ("替换原来的：…"). "确认保存" calls `POST /api/rules/apply`, which checks the proposal again and writes only if the settings version is unchanged. The fixed receipt rules no longer name a field order, so a template decides it. Verified with 129 unit tests (suite total) and a browser run against real DeepSeek as a `smoke-test-` user: "以后通利都叫红超市" saved a word entry; "通利叫大红超市" said it replaces it, and the next receipt used `大红超市`; two pasted outputs became one template, and "不对，付款方式放在日期后面" revised it, after which receipts put the payment method after the date; "今天天气怎么样" saved nothing; cancel saved nothing; the existing receipt did not change.
+- **Code:** `src/server/rules/`, `src/app/api/rules/interpret/route.ts`, `src/app/api/rules/apply/route.ts`, `src/server/repo/settings.ts`, `src/client/rule-dialog.tsx`, `src/client/rules-api.ts`
 
 ### T-008: See and delete rules
 
 - **Type:** feature
-- **Status:** backlog
+- **Status:** ready
 - **Requirement:** `docs/work/mvp/requirements.md#s-09-see-and-delete-rules`
 - **Knowledge:** `docs/knowledge/business.md#settings-and-rules`
 - **Code:** `src/app/rules/page.tsx`, `src/app/api/rules/route.ts`, `src/app/api/rules/[id]/route.ts`

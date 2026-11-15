@@ -99,7 +99,7 @@ every 3 seconds while visible and immediately when they become visible again.
 ### Rules (M2)
 
 `POST /api/rules/interpret` turns plain language into a proposed change plus a Chinese
-explanation, and saves nothing. `POST /api/rules/apply` saves a confirmed proposal with a
+explanation, and saves nothing. The page holds the dialog's conversation and sends it whole each turn (at most 12 turns); the server keeps nothing between requests. Which saved rule a proposal replaces is decided in code: a word by its normalised source, a template by the saved one. `POST /api/rules/apply` saves a confirmed proposal with a
 conditional write on settings `version`. `GET /api/rules` and `DELETE /api/rules/<id>` back the
 rules page.
 
