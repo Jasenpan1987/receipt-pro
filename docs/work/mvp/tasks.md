@@ -43,24 +43,20 @@ T-008, but after each other, because both change the receipt list and the receip
 ### T-005: See receipts on the computer and copy the text
 
 - **Type:** feature
-- **Status:** in-progress
-- **Requirement:** `docs/work/mvp/requirements.md#s-04-copy-the-text`, `docs/work/mvp/requirements.md#s-05-see-receipts-on-every-device`
-- **Knowledge:** `docs/knowledge/architecture.md#sync`, `docs/records/decisions/ADR-004-sync-by-polling.md`
-- **Code:** `src/app/api/session/route.ts`, `src/client/use-session-poll.ts`, `src/client/copy-text.ts`
-- **Description:** `GET /api/session?since=<version>` returns `{ changed: false }` or the whole session. `use-session-poll.ts` polls every 3 seconds while the page is visible and at once on `visibilitychange`. Each `done` receipt gets a copy button: `navigator.clipboard.writeText`, falling back to a hidden textarea and `document.execCommand('copy')` where the page is not a secure context (the phone over plain HTTP). A short "已复制" message confirms. `unreadable` and `failed` receipts have no copy button.
-- **Acceptance:** A photo taken on the phone appears on the Mac within 5 seconds, then turns from processing to text, with no refresh. Copy on the Mac in Chrome and in Safari, pasted into Word, is identical to the app's text, Chinese included. Copy also works on the phone. A Mac tab left open for 8 hours still receives a new receipt.
-- **Notes:** `GET /api/session` already returns the whole session (T-003); this task adds `since` and `{ changed: false }`. `src/client/receipts-screen.tsx` loads it once on open and after each upload.
-- **Blocks:** T-006, T-010 · **Blocked by:** T-004 · **Parallel with:** none
+- **Status:** done (2026-11-15)
+- **Completion:** `GET /api/session?since=<version>&sessionId=<id>` answers `{ changed: false }` (17 bytes, one DynamoDB read) unless both match; `sessionId` is added because a new session can reach the old version number. `src/client/use-session-poll.ts` polls every 3 s while visible, at once on becoming visible, one request at a time, and asks for the whole session every 30 s while a receipt is processing (the 2-minute rule) and at least every 30 min (photo URLs). Copy uses the Clipboard API, or a selected textarea and `execCommand` over plain HTTP; "已复制" confirms; the text stays selectable. Thumbnails open the photo in a new tab (S-05 criterion 3). Verified with 96 unit tests (suite total) and Playwright: a photo uploaded on WebKit/iPhone appeared on Chromium/Mac in 2.9 s and as text in 6.2 s with no reload; Mac copy identical to the page; the plain-HTTP fallback copied identical text. The builder pasted into Word from Chrome and Safari on the Mac: identical, Chinese intact. Pending for T-006: copy on the iPhone, and phone-to-Mac with no refresh on the real devices. The 8-hour tab is T-011.
+- **Code:** `src/client/use-session-poll.ts`, `src/client/sync-policy.ts`, `src/client/copy-text.ts`, `src/server/session-sync.ts`, `src/app/api/session/route.ts`, `src/client/receipts-screen.tsx`
 
 ### T-006: M1 verification with real receipts
 
 - **Type:** qa
-- **Status:** backlog
+- **Status:** ready
 - **Requirement:** `docs/work/mvp/requirements.md#success-measures`
 - **Knowledge:** `docs/work/mvp/gaps.md`
 - **Code:** none
 - **Description:** OMT QA runs the M1 definition of done with the builder's real receipts: an evening's batch end to end, reading accuracy (G-004), time per receipt (G-007), no conversational text in any output, Chinese intact in Word.
 - **Acceptance:** `docs/work/mvp/test-plan.md` has the results. G-004 and G-007 are resolved or updated with measurements.
+- **Notes:** Builder, 2026-11-15: manual checks are done in one sitting here, not during tasks. Collected so far: copy on the iPhone and paste into Notes (T-005); a photo from the iPhone appears on the Mac with no refresh (T-005). Edge cases and the Xiaomi phone stay on T-015.
 - **Blocks:** T-007 · **Blocked by:** T-005 · **Parallel with:** none
 
 ## M2: Rules, Regenerate, Sessions

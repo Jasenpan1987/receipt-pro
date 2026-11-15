@@ -69,8 +69,13 @@
   box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
 }
 
-.thumb {
+.thumbLink {
   flex: none;
+  display: block;
+}
+
+.thumb {
+  display: block;
   width: 4.5rem;
   height: 6rem;
   border-radius: 0.5rem;
@@ -95,6 +100,36 @@
 .text {
   margin: 0.25rem 0 0;
   overflow-wrap: anywhere;
+  /* Always selectable, so a failed copy can be done by hand. */
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.copyRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.copy {
+  padding: 0.5rem 1.25rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: #1a73e8;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.copy:active {
+  background: #1557b0;
+}
+
+.copied {
+  color: #188038;
+  font-weight: 600;
 }
 
 .detail {

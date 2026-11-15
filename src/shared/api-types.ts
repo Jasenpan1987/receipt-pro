@@ -20,6 +20,9 @@ export type SessionView = {
   receipts: ReceiptView[];
 };
 
+/** `GET /api/session?since=<version>&sessionId=<id>`: nothing new, or the whole session. */
+export type SessionPoll = { changed: false } | ({ changed: true } & SessionView);
+
 export type CreateReceiptResponse = { receipt: ReceiptView };
 
 export type ProcessReceiptResponse = { status: ReceiptStatus };

@@ -3,7 +3,7 @@
 > **Status:** planned; M1 in progress
 > **Goal:** The capture-to-copy loop: phone photo in, one line of plain text out, copied on the computer into Word.
 > **Current milestone:** M1, local capture-to-copy loop (`docs/work/mvp/milestones.md#m1-local-capture-to-copy-loop-committed`)
-> **Current task:** T-005, ready (T-001 to T-004 done 2026-11-15)
+> **Current task:** T-009, ready (T-001 to T-005 done 2026-11-15); T-006 waits for the builder
 
 ## Read First
 
@@ -34,8 +34,8 @@
 ## Current State
 
 Requirements v1.1 reviewed. Fifteen tasks in three milestones. AWS profile `receipt-pro` verified (G-009).
-Table `receipt-pro` and bucket `receipt-pro-photos-jasen` exist and are verified (one environment, ADR-005). T-001 to T-004 are done: a photo taken on the phone becomes one line of text in the builder's template within a few seconds (T-002 findings in `docs/knowledge/tech-conventions.md#real-receipts-t-002-2026-11-15`). Only the personal AWS account is ever used (`docs/knowledge/tech-conventions.md#aws-account-safety`).
+Table `receipt-pro` and bucket `receipt-pro-photos-jasen` exist and are verified (one environment, ADR-005). T-001 to T-005 are done: a photo taken on the phone becomes one line of text in the builder's template within a few seconds, appears on the computer without a refresh, and copies into Word (T-002 findings in `docs/knowledge/tech-conventions.md#real-receipts-t-002-2026-11-15`). Only the personal AWS account is ever used (`docs/knowledge/tech-conventions.md#aws-account-safety`).
 
 ## Next Action
 
-OMT Work starts T-005 (see receipts on the computer and copy the text). T-009 (regenerate) is also ready and runs before T-010.
+OMT Work does T-009 (regenerate), then T-010 (new session). T-006, the M1 verification, runs with the builder in one sitting; its notes list the manual checks collected so far.

@@ -1,11 +1,12 @@
 "use client";
 
-import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { compressImage } from "src/client/compress-image";
+import { copyText } from "src/client/copy-text";
 import { processReceipt } from "src/client/process-receipt";
 import { randomId } from "src/client/random-id";
-import { fetchSession } from "src/client/session-api";
 import { UploadError, uploadReceipt } from "src/client/upload-receipt";
+import { useSessionPoll } from "src/client/use-session-poll";
 import type { ReceiptStatus, ReceiptView } from "src/shared/api-types";
 
 import styles from "./receipts-screen.module.css";
@@ -33,6 +34,8 @@ type Card = {
   detail?: string;
   retry?: PendingUpload;
   busy: boolean;
+  /** Pending previews are local object URLs; only stored photos can fail to load and need new URLs. */
+  stored: boolean;
 };
 
 const STATUS_LABEL: Record<ReceiptStatus, string> = {
@@ -42,47 +45,48 @@ const STATUS_LABEL: Record<ReceiptStatus, string> = {
   failed: "处理失败"
 };
 
+/** How long "已复制" stays on the card. */
+const COPIED_MESSAGE_MS = 2_000;
+
 const newestFirst = (a: { createdAt: string }, b: { createdAt: string }) =>
   b.createdAt.localeCompare(a.createdAt);
 
-function withReceipt(list: ReceiptView[], receipt: ReceiptView): ReceiptView[] {
-  return [receipt, ...list.filter(r => r.receiptId !== receipt.receiptId)].sort(newestFirst);
-}
-
 export function ReceiptsScreen() {
-  const [receipts, setReceipts] = useState<ReceiptView[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "ready" | "failed">("loading");
+  const { session, state: loadState, refresh } = useSessionPoll();
   const [pending, setPending] = useState<PendingUpload[]>([]);
+  // Receipts the server confirmed that the next poll has not delivered yet.
+  const [recent, setRecent] = useState<ReceiptView[]>([]);
+  const [copied, setCopied] = useState<{ receiptId: string; ok: boolean }>();
   const queue = useRef<Promise<void>>(Promise.resolve());
   const pendingRef = useRef<PendingUpload[]>([]);
-
-  const load = useCallback(async () => {
-    try {
-      const session = await fetchSession();
-      setReceipts(session.receipts);
-      setLoadState("ready");
-    } catch {
-      setLoadState(state => (state === "ready" ? state : "failed"));
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     pendingRef.current = pending;
   }, [pending]);
 
-  // Release the photo previews when the page goes away.
+  // Release the photo previews and timers when the page goes away.
   useEffect(
     () => () => {
       for (const item of pendingRef.current) {
         URL.revokeObjectURL(item.previewUrl);
       }
+      clearTimeout(copiedTimer.current);
     },
     []
   );
+
+  // Once the session has a receipt, the local copy is no longer needed.
+  useEffect(() => {
+    if (session) {
+      const ids = new Set(session.receipts.map(receipt => receipt.receiptId));
+      setRecent(list =>
+        list.some(receipt => ids.has(receipt.receiptId))
+          ? list.filter(r => !ids.has(r.receiptId))
+          : list
+      );
+    }
+  }, [session]);
 
   const patch = (receiptId: string, change: Partial<PendingUpload>) =>
     setPending(list =>
@@ -110,12 +114,12 @@ export function ReceiptsScreen() {
         receiptId: item.receiptId,
         createdAt: item.createdAt
       });
-      setReceipts(list => withReceipt(list, receipt));
+      setRecent(list => [receipt, ...list.filter(r => r.receiptId !== receipt.receiptId)]);
       setPending(list => list.filter(p => p.receiptId !== item.receiptId));
       URL.revokeObjectURL(item.previewUrl);
-      void load();
+      refresh();
       // Not part of the upload queue: the next photo uploads while this one is read.
-      void processReceipt(receipt.receiptId).then(load);
+      void processReceipt(receipt.receiptId).then(() => refresh());
     } catch (error) {
       patch(item.receiptId, {
         state: "failed",
@@ -151,7 +155,18 @@ export function ReceiptsScreen() {
     }
   }
 
+  // Straight from the click: both copy paths need the user's gesture.
+  function onCopy(receiptId: string, text: string) {
+    void copyText(text).then(ok => {
+      setCopied({ receiptId, ok });
+      clearTimeout(copiedTimer.current);
+      copiedTimer.current = setTimeout(() => setCopied(undefined), COPIED_MESSAGE_MS);
+    });
+  }
+
   const pendingIds = new Set(pending.map(item => item.receiptId));
+  const sessionReceipts = session?.receipts ?? [];
+  const sessionIds = new Set(sessionReceipts.map(receipt => receipt.receiptId));
   const cards: Card[] = [
     ...pending.map(item => ({
       receiptId: item.receiptId,
@@ -160,9 +175,10 @@ export function ReceiptsScreen() {
       label: item.state === "uploading" ? "上传中…" : "上传失败",
       detail: item.message,
       retry: item.state === "failed" && item.retryable ? item : undefined,
-      busy: item.state === "uploading"
+      busy: item.state === "uploading",
+      stored: false
     })),
-    ...receipts
+    ...[...recent.filter(receipt => !sessionIds.has(receipt.receiptId)), ...sessionReceipts]
       .filter(receipt => !pendingIds.has(receipt.receiptId))
       .map(receipt => ({
         receiptId: receipt.receiptId,
@@ -171,7 +187,8 @@ export function ReceiptsScreen() {
         label: STATUS_LABEL[receipt.status],
         text: receipt.status === "done" ? receipt.text : undefined,
         detail: receipt.status === "failed" ? receipt.error : undefined,
-        busy: receipt.status === "processing"
+        busy: receipt.status === "processing",
+        stored: true
       }))
   ].sort(newestFirst);
 
@@ -206,7 +223,7 @@ export function ReceiptsScreen() {
       {loadState === "failed" && (
         <div className={styles.notice} role="alert">
           <p>加载失败，请检查网络后重试。</p>
-          <button className={styles.secondary} type="button" onClick={() => void load()}>
+          <button className={styles.secondary} type="button" onClick={() => refresh(true)}>
             重试
           </button>
         </div>
@@ -219,16 +236,46 @@ export function ReceiptsScreen() {
       <ul className={styles.list} aria-live="polite">
         {cards.map(card => (
           <li key={card.receiptId} className={styles.card}>
-            {/* Plain <img>: photos are private, behind short-lived presigned URLs, and must not
-                pass through the Next.js image optimizer and its cache. */}
-            {/* oxlint-disable-next-line nextjs/no-img-element */}
-            <img className={styles.thumb} src={card.photoUrl} alt="小票照片" />
+            {/* Opens the photo larger in a new tab (S-05 criterion 3). Plain <img>: photos are
+                private, behind short-lived presigned URLs, and must not pass through the
+                Next.js image optimizer and its cache. */}
+            <a
+              className={styles.thumbLink}
+              href={card.photoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {/* oxlint-disable-next-line nextjs/no-img-element */}
+              <img
+                className={styles.thumb}
+                src={card.photoUrl}
+                alt="小票照片"
+                // An expired or broken photo URL: ask for the whole session, which signs new ones.
+                onError={card.stored ? () => refresh(true) : undefined}
+              />
+            </a>
             <div className={styles.body}>
               <p className={card.busy ? `${styles.status} ${styles.busy}` : styles.status}>
                 {card.label}
               </p>
               {card.text && <p className={styles.text}>{card.text}</p>}
               {card.detail && <p className={styles.detail}>{card.detail}</p>}
+              {card.text !== undefined && (
+                <div className={styles.copyRow}>
+                  <button
+                    className={styles.copy}
+                    type="button"
+                    onClick={() => onCopy(card.receiptId, card.text ?? "")}
+                  >
+                    复制
+                  </button>
+                  {copied?.receiptId === card.receiptId && (
+                    <span className={copied.ok ? styles.copied : styles.detail} role="status">
+                      {copied.ok ? "已复制" : "复制失败，请长按文字手动复制"}
+                    </span>
+                  )}
+                </div>
+              )}
               {card.retry && (
                 <button
                   className={styles.secondary}
