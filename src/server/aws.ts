@@ -1,15 +1,13 @@
 // AWS clients for the personal account only (docs/knowledge/tech-conventions.md#aws-account-safety).
-// The default credential chain may lead to other AWS accounts, so every client gets the
-// personal profile explicitly, and nothing reaches DynamoDB or S3 until STS has confirmed
-// that the profile belongs to RECEIPT_PRO_AWS_ACCOUNT_ID.
-//
-// Lambda (T-013) has no ~/.aws profile; credentials there come from the function's role,
-// and this file changes in that task.
+// The default credential chain may lead to other AWS accounts, so every client gets its
+// credentials explicitly: the personal profile on the Mac, the function's own role on Lambda
+// (T-013), which has no ~/.aws. Nothing reaches DynamoDB or S3 until STS has confirmed that
+// the credentials belong to RECEIPT_PRO_AWS_ACCOUNT_ID.
 
 import { DynamoDBClient, type DynamoDBClientConfig } from "@aws-sdk/client-dynamodb";
 import { S3Client } from "@aws-sdk/client-s3";
 import { GetCallerIdentityCommand, STSClient } from "@aws-sdk/client-sts";
-import { fromIni } from "@aws-sdk/credential-providers";
+import { fromEnv, fromIni } from "@aws-sdk/credential-providers";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { type AwsConfig, getAwsConfig } from "src/server/config";
 
@@ -40,10 +38,13 @@ export type AwsClientOverrides = {
 async function verifyAccount(sts: CallerIdentitySource, config: AwsConfig): Promise<string> {
   const { Account } = await sts.send(new GetCallerIdentityCommand({}));
   if (Account !== config.accountId) {
+    const who = config.profile ? `AWS profile "${config.profile}"` : "The function's role";
+    const check = config.profile
+      ? "Check RECEIPT_PRO_AWS_PROFILE and RECEIPT_PRO_AWS_ACCOUNT_ID in .env.local."
+      : "Check RECEIPT_PRO_AWS_ACCOUNT_ID in the function's environment.";
     throw new WrongAwsAccountError(
-      `AWS profile "${config.profile}" belongs to account ${Account ?? "(unknown)"}, ` +
-        `not RECEIPT_PRO_AWS_ACCOUNT_ID ${config.accountId}. Every AWS call is refused. ` +
-        "Check RECEIPT_PRO_AWS_PROFILE and RECEIPT_PRO_AWS_ACCOUNT_ID in .env.local."
+      `${who} belongs to account ${Account ?? "(unknown)"}, ` +
+        `not RECEIPT_PRO_AWS_ACCOUNT_ID ${config.accountId}. Every AWS call is refused. ${check}`
     );
   }
   return Account;
@@ -55,10 +56,13 @@ export function createAwsClients(
 ): AwsClients {
   // `credentials` alone would still let region and other shared settings resolve through the
   // shell's AWS_PROFILE. `profile` and an explicit `region` keep all of it on the personal profile.
+  // On Lambda, the runtime puts the function role's credentials in the environment.
+  const source = config.profile
+    ? { profile: config.profile, credentials: fromIni({ profile: config.profile }) }
+    : { credentials: fromEnv() };
   const base = {
     region: config.region,
-    profile: config.profile,
-    credentials: fromIni({ profile: config.profile }),
+    ...source,
     ...overrides.clientConfig
   };
   const sts = overrides.sts ?? new STSClient(base);

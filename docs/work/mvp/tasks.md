@@ -76,7 +76,7 @@ Accepted 2026-11-15. Detail and review: `docs/records/completed-work/mvp-m1.md`.
 ### T-013: Deploy to Lambda
 
 - **Type:** setup
-- **Status:** backlog
+- **Status:** in-progress
 - **Requirement:** `docs/work/mvp/requirements.md#technical-constraints`
 - **Knowledge:** `docs/knowledge/architecture.md#lambda-compatibility-rules`, `docs/knowledge/tech-conventions.md#aws-account-safety`
 - **Code:** deployment directory chosen in this task
@@ -86,6 +86,7 @@ Accepted 2026-11-15. Detail and review: `docs/records/completed-work/mvp-m1.md`.
 - **Decided with the builder, 2026-11-15 (replaces the deployment IAM user and Mac key agreed earlier):** one Lambda (Node 22, arm64) from `output: "standalone"`, run by the AWS Lambda Web Adapter, behind a Function URL, with its IAM role and a log group, all in one CloudFormation template in the repo. Deployed by GitHub Actions on the public repo: `pnpm check:all`, build, deploy. AWS access through GitHub OIDC and a deploy role that only this repo's `main` can assume, so no AWS key is stored on the Mac or in GitHub. The DeepSeek key and `SESSION_SECRET` are GitHub encrypted secrets, typed by the builder. Workflow logs are public: nothing may print account details. Record as an ADR in this task.
 - **Done by the builder, 2026-11-15:** GitHub environment `production`, deployable from `main` only, no required reviewers, with secrets `DEEPSEEK_API_KEY` and `SESSION_SECRET` (a new value, not the local one). The deploy role's ARN is added after the AWS bootstrap.
 - **Builder, 2026-11-15:** every push to `main` deploys once `pnpm check:all` passes; no pull requests, code goes straight to `main`. After each deploy, Claude tells the builder the result.
+- **Built, 2026-11-15, not yet deployed:** `deploy/bootstrap.yaml`, `deploy/app.yaml`, `deploy/run.sh`, `scripts/package-lambda.ts`, `.github/workflows/deploy.yml`, role credentials on Lambda in `src/server/config.ts` and `src/server/aws.ts`, ADR-007, `docs/runbooks/deploy.md`. Waiting for the builder to create stack `receipt-pro-bootstrap` and add `AWS_DEPLOY_ROLE_ARN`; the first push of the workflow deploys.
 - **Notes:** From T-012: set `SESSION_SECRET` (32+ random characters, kept out of git) in the Lambda environment; `LOCAL_USER_ID` stays unset there. The cookie turns `Secure` automatically behind HTTPS (`x-forwarded-proto`). Agreed with the builder on 2026-11-15: before go-live, the builder and Claude together create a separate deployment IAM user in the personal account, with its own key on its own profile (for example `receipt-pro-deploy`, never `receipt-pro`). Claude then deploys with that profile through the CLI. Until then, the Mac holds only the narrow `receipt-pro` key, which cannot create resources. From the M1 review: Lambda has no `~/.aws` profile, but `src/server/config.ts` requires `RECEIPT_PRO_AWS_PROFILE` and `src/server/aws.ts` uses `fromIni`; both change for role credentials, and the account check stays.
 
 ### T-014: Domain, HTTPS, and home-screen install

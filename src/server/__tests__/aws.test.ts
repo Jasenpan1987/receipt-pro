@@ -139,4 +139,39 @@ describe("client settings", () => {
       vi.unstubAllEnvs();
     }
   });
+
+  // T-013: on Lambda the runtime puts the function role's credentials in the environment.
+  it("uses the credentials in the environment when there is no profile (Lambda)", async () => {
+    vi.stubEnv("AWS_PROFILE", "another-profile");
+    vi.stubEnv("AWS_ACCESS_KEY_ID", "AKIDFUNCTIONROLE");
+    vi.stubEnv("AWS_SECRET_ACCESS_KEY", "secret");
+    vi.stubEnv("AWS_SESSION_TOKEN", "token");
+    try {
+      const { handle } = offlineClientConfig();
+      const { profile: _, ...lambdaConfig } = config;
+      const { dynamodb, s3 } = createAwsClients(lambdaConfig, {
+        sts: stubSts(),
+        clientConfig: { requestHandler: { handle }, maxAttempts: 1 }
+      });
+      for (const client of [dynamodb, s3]) {
+        expect(client.config.profile).toBeUndefined();
+        await expect(client.config.credentials()).resolves.toMatchObject({
+          accessKeyId: "AKIDFUNCTIONROLE",
+          sessionToken: "token"
+        });
+      }
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("names the function's role when it belongs to another account", async () => {
+    const { profile: _, ...lambdaConfig } = config;
+    const { assertPersonalAccount } = createAwsClients(lambdaConfig, {
+      sts: stubSts("222222222222")
+    });
+    await expect(assertPersonalAccount()).rejects.toThrow(
+      "The function's role belongs to account 222222222222"
+    );
+  });
 });

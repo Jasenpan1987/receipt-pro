@@ -1,0 +1,141 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# The app on Lambda (T-013, ADR-007): stack `receipt-pro-app`, deployed by
+# .github/workflows/deploy.yml with the deploy role from deploy/bootstrap.yaml. The table and the
+# photo bucket are not in this stack: they are the one environment shared with the Mac (ADR-005).
+# The function's code is uploaded by the workflow after this stack; the placeholder below only
+# exists so the function can be created.
+Description: receipt-pro app (Lambda, Function URL, role, logs)
+
+Parameters:
+  DeepSeekApiKey:
+    Type: String
+    NoEcho: true
+    MinLength: 1
+  SessionSecret:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+  TableName:
+    Type: String
+    Default: receipt-pro
+  BucketName:
+    Type: String
+    Default: receipt-pro-photos-jasen
+  # The AWS Lambda Web Adapter layer (awslabs/aws-lambda-web-adapter v1.1.0).
+  AdapterLayerVersion:
+    Type: Number
+    Default: 30
+
+Resources:
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/receipt-pro
+      RetentionInDays: 14
+
+  AppRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: receipt-pro-app
+      Description: The receipt-pro function; same data access as the Mac's receipt-pro user
+      PermissionsBoundary: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/receipt-pro-app-boundary
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: receipt-pro-app
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: Table
+                Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                Resource: !Sub arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}
+              - Sid: PhotoObjects
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource: !Sub arn:${AWS::Partition}:s3:::${BucketName}/*
+              - Sid: PhotoList
+                Effect: Allow
+                Action: s3:ListBucket
+                Resource: !Sub arn:${AWS::Partition}:s3:::${BucketName}
+              - Sid: Logs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !GetAtt LogGroup.Arn
+
+  Function:
+    Type: AWS::Lambda::Function
+    # The function logs to /aws/lambda/receipt-pro, which must exist first: the role may write
+    # to it but not create it.
+    DependsOn: LogGroup
+    Properties:
+      FunctionName: receipt-pro
+      Description: receipt-pro Next.js server behind the Lambda Web Adapter
+      Runtime: nodejs22.x
+      Architectures:
+        - arm64
+      Handler: run.sh
+      MemorySize: 1024
+      # A receipt read is up to two DeepSeek calls of at most 45 s each (architecture.md#ai-call).
+      Timeout: 120
+      Role: !GetAtt AppRole.Arn
+      Layers:
+        - !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:753240598075:layer:LambdaAdapterLayerArm64:${AdapterLayerVersion}
+      Code:
+        ZipFile: "// Replaced by the workflow with dist/lambda.zip."
+      Environment:
+        Variables:
+          AWS_LAMBDA_EXEC_WRAPPER: /opt/bootstrap
+          AWS_LWA_PORT: "8080"
+          AWS_LWA_READINESS_CHECK_PATH: /login
+          # The guard in src/server/aws.ts refuses every AWS call unless the role is in this account.
+          RECEIPT_PRO_AWS_ACCOUNT_ID: !Ref AWS::AccountId
+          TABLE_NAME: !Ref TableName
+          BUCKET_NAME: !Ref BucketName
+          DEEPSEEK_API_KEY: !Ref DeepSeekApiKey
+          SESSION_SECRET: !Ref SessionSecret
+
+  FunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !GetAtt Function.Arn
+      # Public: the app's own login (src/proxy.ts and every API route) decides who gets in.
+      AuthType: NONE
+      InvokeMode: BUFFERED
+
+  # A public function URL needs both statements (Lambda, since October 2025).
+  UrlInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Function
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+
+  UrlFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Function
+      Action: lambda:InvokeFunction
+      Principal: "*"
+      InvokedViaFunctionUrl: true
+
+Outputs:
+  Url:
+    Description: The app's HTTPS address
+    Value: !GetAtt FunctionUrl.FunctionUrl

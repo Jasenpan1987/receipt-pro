@@ -31,10 +31,10 @@ The server never holds state between requests, so it fits Lambda unchanged.
 
 One environment (ADR-005):
 
-| Where the app runs                                | Identity                                      | Table         | Bucket                     |
-| ------------------------------------------------- | --------------------------------------------- | ------------- | -------------------------- |
-| The builder's Mac, `next dev` on the home network | IAM user `receipt-pro`, profile `receipt-pro` | `receipt-pro` | `receipt-pro-photos-jasen` |
-| Lambda (M3)                                       | IAM role created at deployment                | same          | same                       |
+| Where the app runs                                | Identity                                                                               | Table         | Bucket                     |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------- | -------------------------- |
+| The builder's Mac, `next dev` on the home network | IAM user `receipt-pro`, profile `receipt-pro`                                          | `receipt-pro` | `receipt-pro-photos-jasen` |
+| Lambda, function `receipt-pro` (T-013, ADR-007)   | IAM role `receipt-pro-app`, within the permissions boundary `receipt-pro-app-boundary` | same          | same                       |
 
 All created by hand in the builder's console on 2026-11-15. Verified the same day with profile `receipt-pro`: table `ACTIVE`, `PAY_PER_REQUEST`; a test object written, read back byte-identical (Chinese included), refused to an anonymous request (403), served through a presigned URL (200), and deleted. The IAM user's only permission is the
 inline policy `receipt-pro-data`: item read/write on table `receipt-pro` in `ap-southeast-2`,
@@ -117,6 +117,15 @@ the page suggests a new session.
 explanation, and saves nothing. The page holds the dialog's conversation and sends it whole each turn (at most 12 turns); the server keeps nothing between requests. Which saved rule a proposal replaces is decided in code: a word by its normalised source, a template by the saved one. `POST /api/rules/apply` saves a confirmed proposal with a
 conditional write on settings `version`. `GET /api/rules` and `DELETE /api/rules/<id>` back the
 rules page.
+
+## Deployment
+
+Every push to `main` deploys through GitHub Actions (ADR-007, `docs/runbooks/deploy.md`). The
+function runs the Next.js standalone server behind the AWS Lambda Web Adapter and is reached at a
+public Function URL over HTTPS. CloudFormation stack `receipt-pro-app` (`deploy/app.yaml`) holds
+the function, its role, the Function URL, and the log group; stack `receipt-pro-bootstrap`
+(`deploy/bootstrap.yaml`) holds the GitHub OIDC provider, the deploy role, and the boundary. On
+Lambda the app uses the function role's credentials; the account check still runs.
 
 ## Lambda Compatibility Rules
 

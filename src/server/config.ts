@@ -4,7 +4,11 @@
 // That is why the profile comes from RECEIPT_PRO_AWS_PROFILE and AWS_PROFILE is never read.
 
 export type AwsConfig = {
-  profile: string;
+  /**
+   * The personal profile in ~/.aws. `undefined` only on Lambda, which has no profile: there the
+   * credentials are the function's own role (T-013).
+   */
+  profile?: string;
   accountId: string;
   region: string;
   tableName: string;
@@ -27,12 +31,23 @@ export class ConfigError extends Error {
 }
 
 const AWS_VARIABLES = [
-  "RECEIPT_PRO_AWS_PROFILE",
   "RECEIPT_PRO_AWS_ACCOUNT_ID",
   "AWS_REGION",
   "TABLE_NAME",
   "BUCKET_NAME"
 ] as const;
+
+const PROFILE_VARIABLE = "RECEIPT_PRO_AWS_PROFILE";
+
+/** Lambda sets this in every function's environment; a Mac shell does not. */
+export function isOnLambda(env: Env): boolean {
+  return Boolean(env.AWS_LAMBDA_FUNCTION_NAME?.trim());
+}
+
+/** Off Lambda the profile is required; on Lambda it is not read at all. */
+function awsNames(env: Env): string[] {
+  return isOnLambda(env) ? [...AWS_VARIABLES] : [PROFILE_VARIABLE, ...AWS_VARIABLES];
+}
 
 const APP_VARIABLES = ["DEEPSEEK_API_KEY", "SESSION_SECRET"] as const;
 
@@ -61,7 +76,7 @@ function readRequired<Name extends string>(env: Env, names: readonly Name[]): Re
   return values as Record<Name, string>;
 }
 
-function toAwsConfig(values: Record<(typeof AWS_VARIABLES)[number], string>): AwsConfig {
+function toAwsConfig(values: Record<string, string>): AwsConfig {
   const accountId = values.RECEIPT_PRO_AWS_ACCOUNT_ID;
   if (!/^\d{12}$/.test(accountId)) {
     throw new ConfigError(
@@ -69,7 +84,7 @@ function toAwsConfig(values: Record<(typeof AWS_VARIABLES)[number], string>): Aw
     );
   }
   return {
-    profile: values.RECEIPT_PRO_AWS_PROFILE,
+    profile: values[PROFILE_VARIABLE],
     accountId,
     region: values.AWS_REGION,
     tableName: values.TABLE_NAME,
@@ -79,11 +94,11 @@ function toAwsConfig(values: Record<(typeof AWS_VARIABLES)[number], string>): Aw
 
 /** Only the AWS variables: `pnpm check:aws` runs before the DeepSeek key exists. */
 export function parseAwsConfig(env: Env): AwsConfig {
-  return toAwsConfig(readRequired(env, AWS_VARIABLES));
+  return toAwsConfig(readRequired(env, awsNames(env)));
 }
 
 export function parseConfig(env: Env): Config {
-  const values = readRequired(env, [...AWS_VARIABLES, ...APP_VARIABLES]);
+  const values = readRequired(env, [...awsNames(env), ...APP_VARIABLES]);
   if (values.SESSION_SECRET.length < 32) {
     throw new ConfigError("SESSION_SECRET must be at least 32 characters.");
   }

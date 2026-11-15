@@ -87,3 +87,27 @@ describe("parseAwsConfig", () => {
     );
   });
 });
+
+// T-013: Lambda has no ~/.aws; the function's role is the only identity there.
+describe("on Lambda", () => {
+  const { RECEIPT_PRO_AWS_PROFILE: _p, LOCAL_USER_ID: _u, ...lambdaEnv } = fullEnv;
+  const onLambda = { ...lambdaEnv, AWS_LAMBDA_FUNCTION_NAME: "receipt-pro" };
+
+  it("does not need RECEIPT_PRO_AWS_PROFILE", () => {
+    const config = parseConfig(onLambda);
+    expect(config.aws.profile).toBeUndefined();
+    expect(config.aws.accountId).toBe("111111111111");
+  });
+
+  it("never reads a profile, even one that is set", () => {
+    const config = parseConfig({ ...onLambda, RECEIPT_PRO_AWS_PROFILE: "receipt-pro" });
+    expect(config.aws.profile).toBeUndefined();
+  });
+
+  it("still needs the account ID that the guard checks", () => {
+    const { RECEIPT_PRO_AWS_ACCOUNT_ID: _, ...env } = onLambda;
+    expect(() => parseConfig(env)).toThrow(
+      "Missing environment variable: RECEIPT_PRO_AWS_ACCOUNT_ID."
+    );
+  });
+});

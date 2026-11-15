@@ -84,15 +84,16 @@ Reproduce: a minimal `src/app/layout.tsx` and `page.tsx` with `next@16.4.6`,
 
 ### What We Don't Use
 
-| Not used                                        | Instead                                     | Why                                                         |
-| ----------------------------------------------- | ------------------------------------------- | ----------------------------------------------------------- |
-| A monorepo with a separate frontend and backend | One Next.js app                             | Builder's choice: one isomorphic app                        |
-| A separate bundler or server framework          | Next.js; the deploy tool is chosen in T-013 | Next.js builds and serves both sides                        |
-| A UI component library or CSS-in-JS             | CSS Modules                                 | Builder's choice                                            |
-| GraphQL or an RPC layer                         | Next.js route handlers with JSON            | Few endpoints, one client                                   |
-| An ORM, decorators                              | DynamoDB SDK calls in `src/server/repo/`    | One table, a handful of item types                          |
-| `cross-env`                                     | nothing                                     | One platform (macOS), and Next.js loads `.env.local` itself |
-| ESLint, Prettier, Jest                          | oxlint, oxfmt, Vitest                       | Faster, one toolchain                                       |
+| Not used                                        | Instead                                                                          | Why                                                         |
+| ----------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| A monorepo with a separate frontend and backend | One Next.js app                                                                  | Builder's choice: one isomorphic app                        |
+| A separate bundler or server framework          | Next.js                                                                          | Next.js builds and serves both sides                        |
+| OpenNext, SST, CDK, or SAM for deployment       | CloudFormation templates in `deploy/`, deployed by the AWS CLI in GitHub Actions | No new tool; four resources (ADR-007)                       |
+| A UI component library or CSS-in-JS             | CSS Modules                                                                      | Builder's choice                                            |
+| GraphQL or an RPC layer                         | Next.js route handlers with JSON                                                 | Few endpoints, one client                                   |
+| An ORM, decorators                              | DynamoDB SDK calls in `src/server/repo/`                                         | One table, a handful of item types                          |
+| `cross-env`                                     | nothing                                                                          | One platform (macOS), and Next.js loads `.env.local` itself |
+| ESLint, Prettier, Jest                          | oxlint, oxfmt, Vitest                                                            | Faster, one toolchain                                       |
 
 ## AWS Account Safety
 
@@ -103,13 +104,14 @@ lose to the shell's value.
 
 Rules:
 
-1. The app reads its profile from `RECEIPT_PRO_AWS_PROFILE` and passes it to the AWS SDK explicitly. It never relies on `AWS_PROFILE` or the default credential chain.
+1. The app reads its profile from `RECEIPT_PRO_AWS_PROFILE` and passes it to the AWS SDK explicitly. It never relies on `AWS_PROFILE` or the default credential chain. On Lambda (`AWS_LAMBDA_FUNCTION_NAME` set), which has no profile, it takes the function role's credentials from the environment explicitly (`fromEnv`), and never reads a profile (T-013).
 2. At startup, the server calls STS `GetCallerIdentity` and refuses every AWS operation unless the account ID equals `RECEIPT_PRO_AWS_ACCOUNT_ID`.
 3. Every `aws` CLI command for this project passes `--profile` with the personal profile and unsets `AWS_PROFILE`. Scripts check the account ID before changing anything.
 
 Rules 1 and 2 are code since T-001:
 
-- `src/server/aws.ts` gives every client `profile`, `region`, and `fromIni({ profile })`. A middleware on the DynamoDB and S3 clients awaits the account check before every command, so new code cannot skip it. Get clients from `getAws()`; never construct an AWS client elsewhere.
+- `src/server/aws.ts` gives every client `profile`, `region`, and `fromIni({ profile })`; on Lambda, `region` and `fromEnv()`. A middleware on the DynamoDB and S3 clients awaits the account check before every command, so new code cannot skip it. Get clients from `getAws()`; never construct an AWS client elsewhere.
+- Deployment uses no AWS key: GitHub Actions assumes role `receipt-pro-deploy` through OIDC, only from environment `production` of this repository (ADR-007).
 - `src/instrumentation.ts` validates the configuration when the server starts and logs the account check result. A missing variable stops `next dev` with its name.
 - Unit tests stub STS and the request handler: `src/server/__tests__/aws.test.ts`.
 - `pnpm check:aws` re-verifies the real account, table, and bucket.

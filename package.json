@@ -9,6 +9,7 @@
     "check": "pnpm -s format && concurrently --raw \"pnpm type\" \"pnpm lint\"",
     "check:all": "pnpm -s format && concurrently --raw \"pnpm type\" \"pnpm lint\" && pnpm -s test",
     "check:aws": "tsx --env-file=.env.local scripts/check-aws.ts",
+    "package:lambda": "tsx scripts/package-lambda.ts",
     "test": "vitest run",
     "type": "tsc --pretty",
     "lint": "oxlint --type-aware",
