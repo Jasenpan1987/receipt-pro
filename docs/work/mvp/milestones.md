@@ -5,6 +5,8 @@
 
 ## M1: Local Capture-to-Copy Loop (committed)
 
+**Status:** accepted 2026-11-15 (`docs/records/completed-work/mvp-m1.md`)
+
 **Goal:** the builder photographs a receipt on the phone and copies its text on the Mac, with the app running locally.
 
 **Tasks:** T-001, T-002, T-003, T-004, T-005, T-006
@@ -24,6 +26,8 @@
 
 **Tasks:** T-007, T-008, T-009, T-010, T-011
 
+**Status:** T-007 to T-010 done; T-011, the verification, left
+
 **Definition of done**
 
 - The builder adds a word entry, an instruction, and a template in plain Chinese, confirms each, and later receipts follow them.
@@ -38,6 +42,8 @@
 **Goal:** the builder uses the app from the home screen, anywhere, on the builder's own domain.
 
 **Tasks:** T-012, T-013, T-014, T-015
+
+**Status:** T-012 done; T-013 to T-015 left
 
 **Definition of done**
 

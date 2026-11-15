@@ -2,8 +2,8 @@
 
 > **Purpose:** What receipt-pro is, for whom, and what is in and out of scope.
 > **Status:** Current
-> **Verified against:** Builder interview, 2026-11-15
-> **Primary code:** none yet
+> **Verified against:** Builder interview, 2026-11-15; M1 boundary review, 2026-11-15
+> **Primary code:** `src/`
 
 ## Summary
 
@@ -18,7 +18,7 @@ builder. (source: `docs/records/meetings/2026-11-15_mvp-ideation-interview.md`)
 The capture-to-copy loop:
 
 1. Log in with a username and password.
-2. Take a photo of a receipt, or pick one from the photo library.
+2. Take a photo of a receipt, or pick photos from the photo library.
 3. The AI writes the output text from the builder's template, word list, and custom instructions.
 4. The receipt and its text appear on every logged-in device, phone and desktop.
 5. Copy the text with one tap.
@@ -28,8 +28,8 @@ for each are in `docs/knowledge/business.md`.
 
 ## Delivery Order
 
-1. A local version that runs and passes local testing. It has no login and is reached only on the home network.
-2. Login, as the last step before the cloud.
+1. A local version that runs and passes local testing, reached only on the home network. Accepted as M1 on 2026-11-15.
+2. Login, as the last step before the cloud. Built in T-012; the local version uses it too.
 3. Deployment to the builder's AWS account and domain. The domain is chosen at this step.
 
 (source: `docs/records/meetings/2026-11-15_mvp-ideation-interview.md#follow-up-same-session`, `docs/records/meetings/2026-11-15_mvp-requirements-review.md`)

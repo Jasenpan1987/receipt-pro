@@ -1,8 +1,8 @@
 # Tech Conventions
 
-> **Purpose:** Technical choices the builder has settled. Architecture detail goes in `docs/knowledge/architecture.md` once it exists.
+> **Purpose:** Technical choices the builder has settled. Architecture detail goes in `docs/knowledge/architecture.md`.
 > **Status:** Current
-> **Verified against:** Builder interview, 2026-11-15; T-001 setup, 2026-11-15
+> **Verified against:** Builder interview, 2026-11-15; code at `c58c302` (M1 boundary review), 2026-11-15
 
 ## Summary
 
@@ -46,7 +46,8 @@ Settled with the builder in T-001 (2026-11-15). One Next.js app serves both page
 | Line endings          | `.gitattributes`: LF everywhere, binary types never normalised                                                                                                                                                                                                                       |
 | Editor                | `.vscode/settings.json`: oxc formatter on save, type-aware oxc, tsgo                                                                                                                                                                                                                 |
 | Browsers              | `browserslist`: `chrome >= 109`, `edge >= 121`, `firefox >= 115`, `safari >= 16`                                                                                                                                                                                                     |
-| Scripts in `scripts/` | Run with `tsx`                                                                                                                                                                                                                                                                       |
+| Scripts in `scripts/` | Run with `tsx`; linted with the same rules as `src/`, because they talk to AWS                                                                                                                                                                                                       |
+| Message language      | User-facing text is Chinese. Developer-facing messages (configuration and AWS errors, server logs, terminal output) are English                                                                                                                                                      |
 
 Rule: run `pnpm check:all` before reporting work as done.
 

@@ -2,8 +2,8 @@
 
 > **Purpose:** How receipt-pro behaves for the user: the workflow, the output, settings, rules, and sessions.
 > **Status:** Current
-> **Verified against:** Builder interview, 2026-11-15
-> **Primary code:** none yet
+> **Verified against:** Builder interview, 2026-11-15; code at `c58c302` (M1 boundary review), 2026-11-15
+> **Primary code:** `src/server/ai/system-prompt.ts`, `src/server/rules/`, `src/client/receipts-screen.tsx`
 
 ## Summary
 
@@ -16,7 +16,7 @@ Terms are defined in `docs/knowledge/glossary.md`.
 ## Workflow
 
 1. The user is logged in on a phone and a computer. Each device logs in once and stays logged in.
-2. On the phone, the user takes a photo or picks one from the library. One photo is one receipt.
+2. On the phone, the user takes a photo or picks photos from the library, several at once if needed (builder, 2026-11-15). One photo is one receipt.
 3. The AI reads the photo and writes the output text.
 4. Within seconds, the receipt appears on every device in the current session, with its photo, its text, and a copy button. No manual refresh.
 5. On the computer, the user taps copy and pastes into Word.
@@ -30,7 +30,7 @@ Terms are defined in `docs/knowledge/glossary.md`.
 - `共` is followed by the total printed on the receipt, not a computed sum.
 - Merchant names stay in the original language unless the word list maps them. `Coles` → `红超市`; `Costco` stays `Costco`.
 - Item names are translated into Chinese by default; a word-list entry overrides the default translation.
-- Discounts must be visible in the output. How they are written is a custom instruction, not fixed behaviour.
+- Discounts must be visible in the output. With no custom instruction, a discount is written `折扣 -金额` right after its item; a custom instruction changes this. The default was chosen in T-004 to keep outputs consistent, not by the builder.
 - If no template exists yet, the builder's usual template above is saved as the template on first use, not the first output: the first output carries that receipt's items and any slip into every later receipt (builder, 2026-11-15).
 
 Every field has one way to be written, so outputs never mix styles (builder, 2026-11-15, after reviewing real outputs that mixed `现金` and `CASH`):
@@ -89,12 +89,13 @@ receipt.
 
 - A session is a server-side batch of receipts, shared by all of the user's devices.
 - Receipts stay until the user taps **New session** and confirms. That clears them, photos included, on every device.
-- There is no fixed limit. Only if the system cannot cope with a session's size does it ask the user to start a new one.
+- There is no fixed limit. Only if the system cannot cope with a session's size does it ask the user to start a new one. Today the page suggests it from 100 receipts, a provisional number until G-003 is measured.
 - Output text cannot be edited inside the app.
 
 ## Login
 
 Username and password, added as the last step before cloud deployment. No sign-up page; the
 one account is created outside the app. A device stays logged in for 30 days, renewed on use.
-The local version has no login and uses one built-in user.
+Since T-012 the local version needs the same login. The one account keeps the user ID that the
+earlier local data was written under, so that data stays visible.
 (source: `docs/records/meetings/2026-11-15_mvp-requirements-review.md`)

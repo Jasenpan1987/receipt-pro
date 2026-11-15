@@ -1,8 +1,8 @@
 # Architecture
 
 > **Purpose:** How receipt-pro is built: components, data model, request flows, and the rules that keep it deployable to Lambda.
-> **Status:** Current (design; M1 scaffold in code)
-> **Verified against:** Builder decisions, 2026-11-15; DeepSeek docs, 2026-11-15
+> **Status:** Current
+> **Verified against:** Code at `c58c302` (M1 boundary review), 2026-11-15; builder decisions and DeepSeek docs, 2026-11-15
 > **Primary code:** `src/app/`, `src/server/`
 
 ## Summary
@@ -53,7 +53,7 @@ arrive without a data migration.
 
 | Item            | PK                               | SK                                    | Attributes                                                                                                                                                                                          |
 | --------------- | -------------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Current session | `USER#<userId>`                  | `CURRENT_SESSION`                     | `sessionId`, `version` (number, incremented on every receipt change), `createdAt`                                                                                                                   |
+| Current session | `USER#<userId>`                  | `CURRENT_SESSION`                     | `sessionId`, `version` (number, incremented on every receipt change), `createdAt`, `previousSessionId` (the session it replaced, whose cleanup the next new session retries)                        |
 | Settings        | `USER#<userId>`                  | `SETTINGS`                            | `template` (`{ text, updatedAt }` or absent), `words` (list of `{ id, source, target, updatedAt }`), `instructions` (list of `{ id, text, updatedAt }`), `version` (number, for conditional writes) |
 | Receipt         | `SESSION#<sessionId>`            | `RECEIPT#<createdAt ISO>#<receiptId>` | `receiptId`, `userId`, `photoKey`, `status`, `text`, `error`, `attempts`, `createdAt`, `updatedAt`                                                                                                  |
 | User            | `USER#<userId>`                  | `PROFILE`                             | `username`, `passwordHash` (scrypt), `failedLogins`, `lockedUntil`, `createdAt`                                                                                                                     |
@@ -62,7 +62,7 @@ arrive without a data migration.
 - Receipt `status`: `processing` | `done` | `unreadable` | `failed`. A receipt in `processing` whose `updatedAt` is more than 2 minutes old is shown as `failed`, so nothing hangs forever.
 - Settings is one item because a single user has few rules and every AI call reads all of them in one request.
 - `attempts` counts processing runs. A run starts by raising it and setting `processing`; its result is written only if `attempts` is unchanged, so a slow earlier run never overwrites a newer one (T-004, used by T-009).
-- The settings item is created when the first `ok` output is saved as the template, with empty `words` and `instructions`.
+- The settings item is created by the first processing run, whatever its outcome, which saves the builder's usual template, with empty `words` and `instructions`; or by the first saved rule, if that comes first. A deleted template is saved again the same way on the next run.
 - A word entry is keyed by its normalised `source` (trimmed, case-folded), so a new rule for the same source overrides the old one.
 
 Photo keys: `photos/<userId>/<sessionId>/<receiptId>.jpg`. The browser shows a photo through a
@@ -73,7 +73,7 @@ short-lived presigned GET URL; the bucket is never public.
 ### Capture and process
 
 1. The phone compresses the photo in the browser to JPEG, longest side at most 2048 px. This also turns iPhone HEIC into JPEG.
-2. `POST /api/receipts` (multipart) stores the photo in S3, creates the receipt with `status: processing`, bumps the session `version`, and returns `receiptId` at once.
+2. `POST /api/receipts` (multipart, JPEG only, at most 4 MB: `MAX_PHOTO_BYTES` in `src/server/upload-form.ts`) stores the photo in S3, then creates the receipt with `status: processing` and bumps the session `version` in one transaction, and returns at once. The phone chooses `receiptId` and `createdAt`; a retry with the same pair returns the stored receipt, so a lost response never makes a duplicate. Several photos upload one after another, not in parallel.
 3. The phone then calls `POST /api/receipts/<receiptId>/process`. The server reads settings, calls DeepSeek, writes `text` and `status`, and bumps `version`.
 4. The phone does not depend on the response to step 3. Every device, the phone included, learns the result by polling. If step 3's HTTP connection drops, the server still finishes, and the 2-minute rule catches a run that died.
 
@@ -88,14 +88,28 @@ Each receipt is one independent request: no earlier receipts or conversation (AD
 - `temperature: 0`: the same photo gives the same text far more often (DeepSeek defaults to 1.0, and outputs of one receipt varied run to run). Not fully deterministic: in 3 runs on one stored photo, 1 dropped an item.
 - Thinking mode off (`providerOptions.deepseek.thinking.type: "disabled"`): about 2 s per receipt instead of 3–38 s, and no less accurate on the builder's receipts (T-002).
 - The photo is sent as upright pixels; the browser's re-encoding does this. A sideways photo with only an orientation tag is misread.
-- Blank or invalid JSON (the docs say blank content can happen) gets one retry, then `status: failed`. The invalid replies seen in T-002 were a JSON object, free text, then a second JSON object; strict parsing rejects them.
+- A reply is accepted when it holds exactly one JSON object; text around it is dropped, and only `text` is kept (`src/server/ai/parse-reading.ts`). A blank reply or two objects (the invalid shape seen in T-002: a JSON object, free text, a second object) get one retry, then `status: failed` with a plain message. Each try has a 45 s timeout.
+- After reading, code rewrites the leading date in the template's style (日 or not, the spacing after it), because exact spacing is the model's weak point (`src/server/ai/date-style.ts`, T-017).
 - No template yet: the builder's usual template is used and saved (`docs/knowledge/business.md#output`).
 
 ### Sync
 
-`GET /api/session?since=<version>` returns `{ changed: false }` when nothing changed, or the
-whole current session (`sessionId`, `version`, receipts newest first) when it did. Pages poll
-every 3 seconds while visible and immediately when they become visible again.
+`GET /api/session?since=<version>&sessionId=<id>` returns `{ changed: false }` when both match,
+or the whole current session (`sessionId`, `version`, receipts newest first) when they do not.
+The session ID is compared too, because a new session starts at version 0 and can reach the old
+number. Pages poll every 3 seconds while visible, one request at a time, and immediately when
+they become visible again (`src/client/use-session-poll.ts`). They ask for the whole session
+every 30 seconds while a receipt is `processing` (the 2-minute rule changes nothing in the
+table) and at least every 30 minutes (presigned photo URLs expire).
+
+### New session (M2)
+
+`POST /api/session/new` writes a new `CURRENT_SESSION` (version 0) only if the current one is
+still the one the page saw, so two devices pressing at once make one new session. Then it
+deletes the old session's photos (by prefix, orphans included) and items. A failed cleanup is
+not shown; the next new session retries it through `previousSessionId`. Settings do not change.
+From 100 receipts (`SESSION_SIZE_PROMPT` in `src/shared/limits.ts`, provisional until G-003)
+the page suggests a new session.
 
 ### Rules (M2)
 

@@ -12,52 +12,16 @@ T-008, but after each other, because both change the receipt list and the receip
 
 ## M1: Local Capture-to-Copy Loop
 
-### T-001: Project scaffold, AWS account guard, dev resources
+Accepted 2026-11-15. Detail and review: `docs/records/completed-work/mvp-m1.md`.
 
-- **Type:** setup
-- **Status:** done (2026-11-15)
-- **Completion:** Next.js 16.4 app (App Router, TypeScript 7, pnpm) with the tooling in `docs/knowledge/tech-conventions.md#tooling`. `src/server/config.ts` validates the seven variables; `src/server/aws.ts` pins every client to the personal profile and guards every DynamoDB and S3 command with the account check; `pnpm check:aws` passes against the real table and bucket with another `AWS_PROFILE` set in the shell, and refuses a wrong account ID at the first step. 17 unit tests, `pnpm check:all` green, placeholder page opened on the builder's phone over Wi-Fi.
-- **Code:** `src/server/config.ts`, `src/server/aws.ts`, `src/instrumentation.ts`, `scripts/check-aws.ts`, `src/app/`
-
-### T-002: DeepSeek probe with a real receipt
-
-- **Type:** integration
-- **Status:** done (2026-11-15)
-- **Completion:** `deepseek-flash` takes images through `@ai-sdk/deepseek` (chat endpoint), together with JSON mode; the conflict is resolved and `@ai-sdk/openai-compatible` is not needed. 30 calls on six photos of the builder's real receipts: with thinking off, about 2 s per call, dates and totals 6/6, item prices 31/34; thinking on is 3–38 s and no more accurate. 2 of 30 replies were invalid JSON (JSON, text, JSON), rejected by the SDK's strict parsing. Photos must be sent upright. Findings and reproduce command: `docs/knowledge/tech-conventions.md#real-receipts-t-002-2026-11-15`. G-004 and G-007 updated with the measurements.
-- **Code:** `scripts/probe-deepseek.ts`
-
-### T-003: Take a photo and see it in the list
-
-- **Type:** feature
-- **Status:** done (2026-11-15)
-- **Completion:** Two buttons, 拍照 (camera) and 从相册选 (library, several photos at once: builder's decision, 2026-11-15). The browser re-encodes each photo to JPEG, longest side 2048. `POST /api/receipts` stores the photo and creates the receipt in one transaction with the session version bump; a retry with the same `receiptId` and `createdAt` returns the stored receipt, so a lost response never makes a duplicate (builder's decision). `GET /api/session` (without `since`) lists the session newest first with presigned photo URLs. Verified on the builder's iPhone and Xiaomi phone (camera and library, JPEG 1536×2048), against the real table and bucket as a `smoke-test-` user, in WebKit and Chromium including offline failure and retry, and with 45 unit tests (suite total). The real-phone Wi-Fi-off check is deferred to T-015 by the builder.
-- **Code:** `src/client/receipts-screen.tsx`, `src/client/compress-image.ts`, `src/client/upload-receipt.ts`, `src/app/api/receipts/route.ts`, `src/app/api/session/route.ts`, `src/server/repo/`, `src/server/photos.ts`, `src/server/upload-form.ts`, `scripts/delete-test-user.ts`
-
-### T-004: Generate the output text
-
-- **Type:** feature
-- **Status:** done (2026-11-15)
-- **Completion:** After each upload the phone calls `POST /api/receipts/<id>/process`. The server reads the settings and the photo, calls `deepseek-flash` with thinking off in JSON mode, and keeps only `text`: exactly one JSON object is accepted, text around it is dropped, two objects or a blank reply get one retry, then `failed` with a plain message (invalid key, empty balance, busy, timeout each have their own). With no template, the prompt uses the builder's usual template and the first `ok` output is saved as the template. Each run is an attempt; its result is written only if no newer run started. A receipt `processing` for over 2 minutes shows as `failed`. Verified with 79 unit tests (suite total; parser and reader fixtures include the T-002 reply shapes), end to end against real AWS and DeepSeek as a `smoke-test-` user (2–4 s per receipt, template saved, invalid key gives `failed`), and on the builder's iPhone (3.5 s). Fixed on 2026-11-15 after the builder's review of real outputs, which mixed `现金` and `CASH`: one rule per field (`docs/knowledge/business.md#output`), `temperature: 0`, and the builder's usual template saved instead of the first output.
-- **Code:** `src/server/ai/`, `src/app/api/receipts/[id]/process/route.ts`, `src/server/repo/receipts.ts`, `src/server/repo/settings.ts`, `src/server/receipt-view.ts`, `src/client/process-receipt.ts`
-
-### T-005: See receipts on the computer and copy the text
-
-- **Type:** feature
-- **Status:** done (2026-11-15)
-- **Completion:** `GET /api/session?since=<version>&sessionId=<id>` answers `{ changed: false }` (17 bytes, one DynamoDB read) unless both match; `sessionId` is added because a new session can reach the old version number. `src/client/use-session-poll.ts` polls every 3 s while visible, at once on becoming visible, one request at a time, and asks for the whole session every 30 s while a receipt is processing (the 2-minute rule) and at least every 30 min (photo URLs). Copy uses the Clipboard API, or a selected textarea and `execCommand` over plain HTTP; "已复制" confirms; the text stays selectable. Thumbnails open the photo in a new tab (S-05 criterion 3). Verified with 96 unit tests (suite total) and Playwright: a photo uploaded on WebKit/iPhone appeared on Chromium/Mac in 2.9 s and as text in 6.2 s with no reload; Mac copy identical to the page; the plain-HTTP fallback copied identical text. The builder pasted into Word from Chrome and Safari on the Mac: identical, Chinese intact. Pending for T-006: copy on the iPhone, and phone-to-Mac with no refresh on the real devices. The 8-hour tab is T-011.
-- **Code:** `src/client/use-session-poll.ts`, `src/client/sync-policy.ts`, `src/client/copy-text.ts`, `src/server/session-sync.ts`, `src/app/api/session/route.ts`, `src/client/receipts-screen.tsx`
-
-### T-006: M1 verification with real receipts
-
-- **Type:** qa
-- **Status:** done (2026-11-15)
-- **Requirement:** `docs/work/mvp/requirements.md#success-measures`
-- **Knowledge:** `docs/work/mvp/gaps.md`
-- **Code:** none
-- **Description:** OMT QA runs the M1 definition of done with the builder's real receipts: an evening's batch end to end, reading accuracy (G-004), time per receipt (G-007), no conversational text in any output, Chinese intact in Word.
-- **Acceptance:** `docs/work/mvp/test-plan.md` has the results. G-004 and G-007 are resolved or updated with measurements.
-- **Notes:** Builder, 2026-11-15: manual checks are done in one sitting here, not during tasks. Collected so far: create the real login account with `pnpm exec tsx --env-file=.env.local scripts/create-user.ts` in the builder's own Terminal, then log in on the iPhone and the Mac (T-012); copy on the iPhone and paste into Notes (T-005); a photo from the iPhone appears on the Mac with no refresh (T-005). Edge cases and the Xiaomi phone stay on T-015.
-- **Blocks:** T-007 · **Blocked by:** T-005 · **Parallel with:** none
+| Task  | Title                                              | Status            |
+| ----- | -------------------------------------------------- | ----------------- |
+| T-001 | Project scaffold, AWS account guard, dev resources | done (2026-11-15) |
+| T-002 | DeepSeek probe with a real receipt                 | done (2026-11-15) |
+| T-003 | Take a photo and see it in the list                | done (2026-11-15) |
+| T-004 | Generate the output text                           | done (2026-11-15) |
+| T-005 | See receipts on the computer and copy the text     | done (2026-11-15) |
+| T-006 | M1 verification with real receipts                 | done (2026-11-15) |
 
 ## M2: Rules, Regenerate, Sessions
 
@@ -92,7 +56,7 @@ T-008, but after each other, because both change the receipt list and the receip
 ### T-011: M2 verification and long-use test
 
 - **Type:** qa
-- **Status:** backlog
+- **Status:** backlog (2026-11-15: the builder chose to deploy first, T-013; the 8-hour length was never confirmed by the builder)
 - **Requirement:** `docs/work/mvp/requirements.md#non-functional-requirements`
 - **Code:** none
 - **Description:** OMT QA verifies S-06 to S-09, and runs a session of 100 receipts and a tab open for 8 hours. Measures G-003.
@@ -119,7 +83,7 @@ T-008, but after each other, because both change the receipt list and the receip
 - **Description:** Choose the deployment tool and record it as an ADR. Give the Lambda an IAM role with the same narrow access to table `receipt-pro` and the photo bucket as the `receipt-pro` user (ADR-005: one environment, no new table or bucket). Put configuration in the Lambda's environment variables: table name, bucket name, region, account ID, and the DeepSeek key. The key is read at deploy time from a gitignored local file and must never appear in any committed file. `RECEIPT_PRO_AWS_PROFILE` and `LOCAL_USER_ID` are not set on Lambda. Deploy the app to Lambda in the personal account, reachable at the AWS-provided URL over HTTPS.
 - **Acceptance:** The deployed app passes the M1 loop from the phone over mobile data. No resource exists outside the personal account. Idle cost has no always-on component.
 - **Blocks:** T-014 · **Blocked by:** T-012
-- **Notes:** From T-012: set `SESSION_SECRET` (32+ random characters, kept out of git) in the Lambda environment; `LOCAL_USER_ID` stays unset there. The cookie turns `Secure` automatically behind HTTPS (`x-forwarded-proto`). Agreed with the builder on 2026-11-15: before go-live, the builder and Claude together create a separate deployment IAM user in the personal account, with its own key on its own profile (for example `receipt-pro-deploy`, never `receipt-pro`). Claude then deploys with that profile through the CLI. Until then, the Mac holds only the narrow `receipt-pro` key, which cannot create resources.
+- **Notes:** From T-012: set `SESSION_SECRET` (32+ random characters, kept out of git) in the Lambda environment; `LOCAL_USER_ID` stays unset there. The cookie turns `Secure` automatically behind HTTPS (`x-forwarded-proto`). Agreed with the builder on 2026-11-15: before go-live, the builder and Claude together create a separate deployment IAM user in the personal account, with its own key on its own profile (for example `receipt-pro-deploy`, never `receipt-pro`). Claude then deploys with that profile through the CLI. Until then, the Mac holds only the narrow `receipt-pro` key, which cannot create resources. From the M1 review: Lambda has no `~/.aws` profile, but `src/server/config.ts` requires `RECEIPT_PRO_AWS_PROFILE` and `src/server/aws.ts` uses `fromIni`; both change for role credentials, and the account check stays.
 
 ### T-014: Domain, HTTPS, and home-screen install
 
@@ -144,14 +108,19 @@ T-008, but after each other, because both change the receipt list and the receip
 
 ## Bugs Found in Verification
 
-### T-017: The fixed date rule beat the user's template
+| Task  | Title                                        | Found in | Status            | Detail                                  |
+| ----- | -------------------------------------------- | -------- | ----------------- | --------------------------------------- |
+| T-017 | The fixed date rule beat the user's template | T-006    | done (2026-11-15) | `docs/records/completed-work/mvp-m1.md` |
+
+### T-018: An upload fails when it meets another receipt's session update
 
 - **Type:** bug
-- **Status:** done (2026-11-15)
-- **Found in:** T-006. The builder's rules dropped 日 and put three spaces after the date; receipts often still had 日 and one space.
-- **Reproduce:** with the template `2026 年 10 月 1   Costco 青菜 3.25 水 2.0 啤酒 10.0 共1234，现金`, 6 of 6 readings wrote `1 日` and 6 of 6 missed the three spaces. Cause: fixed rule 2 said `日期写成 "2026 年 10 月 1 日" 这样`, and only rules 3 to 8 yielded to the user's.
-- **Fix:** rule 2 now takes the date style from the template, and the user's template, word list, and instructions win over every fixed rule. `src/server/ai/date-style.ts` rewrites the leading date in the template's style (日 or not, the spacing after it), because exact spacing is the model's weak point: with the prompt fix alone, 3 of 6 still had two spaces; with both, 0 of 6.
-- **Code:** `src/server/ai/system-prompt.ts`, `src/server/ai/date-style.ts`, `src/app/api/receipts/[id]/process/route.ts`
+- **Status:** ready
+- **Found in:** a 100-receipt run for T-011, 2026-11-15, on the production build: 20 photos picked at once from the library in WebKit with an iPhone profile, twice. The first 20 all uploaded; one of the second 20 failed. The run was then stopped.
+- **Reproduce:** pick 20 photos at once while earlier receipts of the batch are still processing. The server log shows `POST /api/receipts failed: TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [None, TransactionConflict]`. Cause: `createReceipt`, `startAttempt`, and `finishAttempt` in `src/server/repo/receipts.ts` each run a `TransactWriteCommand` that also updates the `CURRENT_SESSION` item (the version bump), and DynamoDB cancels a transaction that meets another one on the same item.
+- **Expected:** every photo uploads. **Actual:** the card shows "上传失败", and the user must tap "重试".
+- **Fix means:** a conflict never reaches the user. The upload is safe to retry (same `receiptId`, T-003); the processing writes can fail the same way and need the same check.
+- **Code:** `src/server/repo/receipts.ts`, `src/app/api/receipts/route.ts`
 
 ## Later (not in a milestone)
 

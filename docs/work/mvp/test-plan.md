@@ -59,6 +59,11 @@ T-002 and after the format fix (`docs/knowledge/tech-conventions.md#real-receipt
 
 **Verdict:** M1's definition of done is met. Accepted.
 
+### M1 Boundary Review, 2026-11-15
+
+At `main` @ `c58c302`: `pnpm check:all` green, 154 unit tests in 24 files. No regression since
+T-006. Review: `docs/records/completed-work/mvp-m1.md`.
+
 ### Deferred
 
 - To T-011 (automated by QA): a session of 100 receipts; a Mac tab open for 8 hours.
