@@ -34,14 +34,9 @@ T-008, but after each other, because both change the receipt list and the receip
 ### T-003: Take a photo and see it in the list
 
 - **Type:** feature
-- **Status:** ready
-- **Requirement:** `docs/work/mvp/requirements.md#s-02-capture-a-receipt`
-- **Knowledge:** `docs/knowledge/architecture.md#data-model`, `docs/knowledge/architecture.md#capture-and-process`
-- **Code:** `src/app/page.tsx`, `src/app/api/receipts/route.ts`, `src/server/repo/`, `src/server/identity.ts`, `src/client/compress-image.ts`
-- **Description:** The main page has a button to take a photo or pick one from the library. `src/client/compress-image.ts` re-encodes it to JPEG, longest side at most 2048 px. `POST /api/receipts` (multipart) stores it at `photos/<userId>/<sessionId>/<receiptId>.jpg`, creates the receipt item (`status: processing`) and the `CURRENT_SESSION` item if missing, and increments the session `version`. `src/server/identity.ts` exports `currentUserId()`, returning `LOCAL_USER_ID` until M3. The page lists the session's receipts newest first, each with a thumbnail from a presigned GET URL and its status. An upload failure shows a plain Chinese message and a retry.
-- **Acceptance:** On an iPhone and a Xiaomi phone, a camera photo and a library photo each appear at the top of the list with a thumbnail and the status "processing". The item is in `receipt-pro` and the photo in the bucket. Turning Wi-Fi off mid-upload shows the message and retry works.
-- **Blocks:** T-004 · **Blocked by:** T-001 · **Parallel with:** T-002
-- **Notes:** Test HEIC from an iPhone with default camera settings. Repository functions take `userId` explicitly; nothing reads a global user.
+- **Status:** done (2026-11-15)
+- **Completion:** Two buttons, 拍照 (camera) and 从相册选 (library, several photos at once: builder's decision, 2026-11-15). The browser re-encodes each photo to JPEG, longest side 2048. `POST /api/receipts` stores the photo and creates the receipt in one transaction with the session version bump; a retry with the same `receiptId` and `createdAt` returns the stored receipt, so a lost response never makes a duplicate (builder's decision). `GET /api/session` (without `since`) lists the session newest first with presigned photo URLs. Verified on the builder's iPhone and Xiaomi phone (camera and library, JPEG 1536×2048), against the real table and bucket as a `smoke-test-` user, in WebKit and Chromium including offline failure and retry, and with 45 unit tests (suite total). The real-phone Wi-Fi-off check is deferred to T-015 by the builder.
+- **Code:** `src/client/receipts-screen.tsx`, `src/client/compress-image.ts`, `src/client/upload-receipt.ts`, `src/app/api/receipts/route.ts`, `src/app/api/session/route.ts`, `src/server/repo/`, `src/server/photos.ts`, `src/server/upload-form.ts`, `scripts/delete-test-user.ts`
 
 ### T-004: Generate the output text
 
@@ -64,6 +59,7 @@ T-008, but after each other, because both change the receipt list and the receip
 - **Code:** `src/app/api/session/route.ts`, `src/client/use-session-poll.ts`, `src/client/copy-text.ts`
 - **Description:** `GET /api/session?since=<version>` returns `{ changed: false }` or the whole session. `use-session-poll.ts` polls every 3 seconds while the page is visible and at once on `visibilitychange`. Each `done` receipt gets a copy button: `navigator.clipboard.writeText`, falling back to a hidden textarea and `document.execCommand('copy')` where the page is not a secure context (the phone over plain HTTP). A short "已复制" message confirms. `unreadable` and `failed` receipts have no copy button.
 - **Acceptance:** A photo taken on the phone appears on the Mac within 5 seconds, then turns from processing to text, with no refresh. Copy on the Mac in Chrome and in Safari, pasted into Word, is identical to the app's text, Chinese included. Copy also works on the phone. A Mac tab left open for 8 hours still receives a new receipt.
+- **Notes:** `GET /api/session` already returns the whole session (T-003); this task adds `since` and `{ changed: false }`. `src/client/receipts-screen.tsx` loads it once on open and after each upload.
 - **Blocks:** T-006, T-010 · **Blocked by:** T-004 · **Parallel with:** none
 
 ### T-006: M1 verification with real receipts
@@ -178,3 +174,4 @@ T-008, but after each other, because both change the receipt list and the receip
 - **Description:** OMT QA reruns the success measures on the deployed app, from the installed home-screen app and the Mac.
 - **Acceptance:** Results in `docs/work/mvp/test-plan.md`; the epic is ready to archive.
 - **Blocked by:** T-014
+- **Notes:** Builder, 2026-11-15: manual edge-case tests on the real phones wait until here, at the end of the MVP. Collected so far: Wi-Fi off mid-upload, then retry (T-003; already covered by browser offline tests in WebKit and Chromium). From T-004 on, tasks are checked on the iPhone only; the Xiaomi checks of those tasks also wait until here (T-003 passed on both phones).

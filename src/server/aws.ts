@@ -10,6 +10,7 @@ import { DynamoDBClient, type DynamoDBClientConfig } from "@aws-sdk/client-dynam
 import { S3Client } from "@aws-sdk/client-s3";
 import { GetCallerIdentityCommand, STSClient } from "@aws-sdk/client-sts";
 import { fromIni } from "@aws-sdk/credential-providers";
+import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { type AwsConfig, getAwsConfig } from "src/server/config";
 
 export class WrongAwsAccountError extends Error {
@@ -23,6 +24,8 @@ export type CallerIdentitySource = {
 
 export type AwsClients = {
   dynamodb: DynamoDBClient;
+  /** Document client over `dynamodb`; it shares the same middleware stack, so the guard applies. */
+  db: DynamoDBDocumentClient;
   s3: S3Client;
   /** Resolves with the account ID, or rejects with `WrongAwsAccountError`. */
   assertPersonalAccount: () => Promise<string>;
@@ -92,7 +95,11 @@ export function createAwsClients(
     guard
   );
 
-  return { dynamodb, s3, assertPersonalAccount };
+  const db = DynamoDBDocumentClient.from(dynamodb, {
+    marshallOptions: { removeUndefinedValues: true }
+  });
+
+  return { dynamodb, db, s3, assertPersonalAccount };
 }
 
 let clients: AwsClients | undefined;

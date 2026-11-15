@@ -1,0 +1,130 @@
+.screen {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 0 1rem 2rem;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 1rem 0 0.75rem;
+  background: #fafafa;
+}
+
+.title {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.action {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.25rem;
+  border-radius: 0.75rem;
+  background: #1a73e8;
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.action:active {
+  background: #1557b0;
+}
+
+/* Visually hidden but still clickable through its label (display: none breaks some iOS versions). */
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.list {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-radius: 0.75rem;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+}
+
+.thumb {
+  flex: none;
+  width: 4.5rem;
+  height: 6rem;
+  border-radius: 0.5rem;
+  object-fit: cover;
+  background: #eee;
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.status {
+  margin: 0;
+  font-weight: 600;
+}
+
+.busy {
+  color: #5f6368;
+}
+
+.text {
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.detail {
+  margin: 0.25rem 0 0;
+  color: #c5221f;
+  font-size: 0.95rem;
+}
+
+.secondary {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid #1a73e8;
+  border-radius: 0.5rem;
+  background: #fff;
+  color: #1a73e8;
+  font-size: 1rem;
+}
+
+.notice {
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: #fce8e6;
+}
+
+.notice p {
+  margin: 0;
+}
+
+.empty {
+  margin: 2rem 0;
+  text-align: center;
+  color: #5f6368;
+}

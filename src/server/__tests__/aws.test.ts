@@ -1,5 +1,6 @@
 import { GetItemCommand } from "@aws-sdk/client-dynamodb";
 import { HeadBucketCommand } from "@aws-sdk/client-s3";
+import { GetCommand } from "@aws-sdk/lib-dynamodb";
 import { type CallerIdentitySource, createAwsClients, WrongAwsAccountError } from "src/server/aws";
 import type { AwsConfig } from "src/server/config";
 
@@ -102,6 +103,15 @@ describe("account guard on every client", () => {
     await expect(s3.send(new HeadBucketCommand({ Bucket: config.bucketName }))).rejects.toThrow(
       WrongAwsAccountError
     );
+    expect(handle).not.toHaveBeenCalled();
+  });
+
+  it("stops a document-client call before it is sent when the account is wrong", async () => {
+    const { handle, clientConfig } = offlineClientConfig();
+    const { db } = createAwsClients(config, { sts: stubSts("999999999999"), clientConfig });
+    await expect(
+      db.send(new GetCommand({ TableName: config.tableName, Key: { PK: "x", SK: "x" } }))
+    ).rejects.toThrow(WrongAwsAccountError);
     expect(handle).not.toHaveBeenCalled();
   });
 

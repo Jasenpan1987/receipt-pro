@@ -61,6 +61,14 @@ Reproduce: a minimal `src/app/layout.tsx` and `page.tsx` with `next@16.4.6`,
 - `next dev` appends a managed `nextjs-agent-rules` block to `AGENTS.md` on every start and restores it if removed. The builder chose to keep and commit it (2026-11-15): it points agents at the docs for the installed Next.js version in `node_modules/next/dist/docs/`. `agentRules: false` in `next.config.ts` would remove it. Source: `node_modules/next/dist/server/lib/generate-agent-files.js`.
 - Next.js blocks dev-only requests from origins other than `localhost`. `allowedDevOrigins` in `next.config.ts` lists the home network ranges so the phone can use the dev server by the Mac's LAN address. Checked 2026-11-15: the page opened on the builder's phone at `http://<Mac LAN IP>:3000`.
 - `next dev` stops at start with the name of any missing variable (`src/instrumentation.ts`), so `DEEPSEEK_API_KEY` must be in `.env.local` before `pnpm dev` runs.
+- After a long run with many edited and deleted files, `next dev` 16.4 (Turbopack) once went into a reload loop: the log repeated `✓ Compiled in 2ms` and `GET / 200` with no file changing, and the page's fetches were cancelled. Restarting `pnpm dev` fixed it (2026-11-15).
+
+### Browser Rules Found in T-003
+
+- The phone uses the dev server over plain HTTP, which is not a secure context: `crypto.randomUUID` and `navigator.clipboard` do not exist there. IDs come from `src/client/random-id.ts` (`crypto.getRandomValues`).
+- Photos are re-encoded in the browser (`src/client/compress-image.ts`) with `createImageBitmap(file, { imageOrientation: "from-image" })`, falling back to `<img>` decoding. Checked 2026-11-15 on an iPhone and a Xiaomi phone: camera and library photos arrive as JPEG, 1536×2048, portrait kept, 0.4–1.3 MB.
+- Photos are shown with a plain `<img>` and presigned URLs, never through the Next.js image optimizer, which would cache private photos. `src/server/photos.ts` signs as of the start of the hour for two hours, so a photo's URL stays the same for an hour and polling does not re-download it.
+- Testing on the phone: `docs/runbooks/phone-test.md`.
 
 ### What We Don't Use
 
