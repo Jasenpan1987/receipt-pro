@@ -12,9 +12,29 @@
   background: #fafafa;
 }
 
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
 .title {
-  margin: 0 0 0.75rem;
+  margin: 0;
   font-size: 1.25rem;
+}
+
+.newSession {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid #c5221f;
+  border-radius: 0.5rem;
+  background: #fff;
+  color: #c5221f;
+  font-size: 0.95rem;
+}
+
+.newSession:disabled {
+  opacity: 0.5;
 }
 
 .actions {

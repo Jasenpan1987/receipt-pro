@@ -3,12 +3,14 @@
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { compressImage } from "src/client/compress-image";
 import { copyText } from "src/client/copy-text";
+import { startNewSession } from "src/client/new-session";
 import { processReceipt } from "src/client/process-receipt";
 import { randomId } from "src/client/random-id";
 import { canRegenerate, statusLabel } from "src/client/receipt-labels";
 import { UploadError, uploadReceipt } from "src/client/upload-receipt";
 import { useSessionPoll } from "src/client/use-session-poll";
 import type { ReceiptView } from "src/shared/api-types";
+import { SESSION_SIZE_PROMPT } from "src/shared/limits";
 
 import styles from "./receipts-screen.module.css";
 
@@ -55,6 +57,7 @@ export function ReceiptsScreen() {
   const [copied, setCopied] = useState<{ receiptId: string; ok: boolean }>();
   // Regenerate pressed here; shown at once, before the next poll brings the server's state.
   const [regenerating, setRegenerating] = useState<Set<string>>(() => new Set());
+  const [clearing, setClearing] = useState(false);
   const queue = useRef<Promise<void>>(Promise.resolve());
   const pendingRef = useRef<PendingUpload[]>([]);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -176,6 +179,23 @@ export function ReceiptsScreen() {
     });
   }
 
+  // S-06: confirmation first, because one accidental tap would lose a batch nobody has pasted yet.
+  async function onNewSession() {
+    if (!window.confirm("开始新 session？当前所有小票和照片都会删除，规则不变。")) {
+      return;
+    }
+    setClearing(true);
+    try {
+      await startNewSession();
+      setRecent([]);
+      refresh(true);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "开新 session 失败，请重试。");
+    } finally {
+      setClearing(false);
+    }
+  }
+
   const pendingIds = new Set(pending.map(item => item.receiptId));
   const sessionReceipts = session?.receipts ?? [];
   const sessionIds = new Set(sessionReceipts.map(receipt => receipt.receiptId));
@@ -215,7 +235,17 @@ export function ReceiptsScreen() {
   return (
     <div className={styles.screen}>
       <header className={styles.header}>
-        <h1 className={styles.title}>receipt-pro</h1>
+        <div className={styles.titleRow}>
+          <h1 className={styles.title}>receipt-pro</h1>
+          <button
+            className={styles.newSession}
+            type="button"
+            disabled={clearing}
+            onClick={() => void onNewSession()}
+          >
+            {clearing ? "正在清空…" : "新 session"}
+          </button>
+        </div>
         <div className={styles.actions}>
           <label className={styles.action}>
             拍照
@@ -248,6 +278,12 @@ export function ReceiptsScreen() {
           </button>
         </div>
       )}
+      {sessionReceipts.length >= SESSION_SIZE_PROMPT && (
+        <p className={styles.notice}>
+          这一批已经有 {sessionReceipts.length} 张小票了。复制完以后，可以点“新
+          session”开始新的一批。
+        </p>
+      )}
       {loadState === "loading" && cards.length === 0 && <p className={styles.empty}>正在加载…</p>}
       {loadState === "ready" && cards.length === 0 && (
         <p className={styles.empty}>还没有小票。拍一张试试。</p>
@@ -270,6 +306,9 @@ export function ReceiptsScreen() {
                 className={styles.thumb}
                 src={card.photoUrl}
                 alt="小票照片"
+                // Full-size photos: only decode the ones on screen.
+                loading="lazy"
+                decoding="async"
                 // An expired or broken photo URL: ask for the whole session, which signs new ones.
                 onError={card.stored ? () => refresh(true) : undefined}
               />

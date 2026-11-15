@@ -93,13 +93,9 @@ T-008, but after each other, because both change the receipt list and the receip
 ### T-010: New session
 
 - **Type:** feature
-- **Status:** ready
-- **Requirement:** `docs/work/mvp/requirements.md#s-06-sessions`
-- **Knowledge:** `docs/knowledge/business.md#sessions`, `docs/knowledge/architecture.md#data-model`
-- **Code:** `src/app/api/session/new/route.ts`, `src/server/repo/`
-- **Description:** A "新 session" button asks for confirmation, then `POST /api/session/new` writes a new `CURRENT_SESSION` and deletes the old session's receipts and photos. Deletion is safe to retry: the old session is no longer current, so leftovers never show. A configurable size threshold shows a plain prompt to start a new session (value from G-003).
-- **Acceptance:** Confirming clears the list on every device within 5 seconds, and the old photos are gone from the bucket. Settings are unchanged. Cancel does nothing.
-- **Blocks:** T-011 · **Blocked by:** T-005, T-009 · **Parallel with:** T-008
+- **Status:** done (2026-11-15)
+- **Completion:** A "新 session" button asks for confirmation (`confirm()`), then `POST /api/session/new` writes a new `CURRENT_SESSION` (version 0, `previousSessionId` set) only if the current one is still the one it read, so two devices pressing at once get one new session. Then it deletes the old session's photos (by prefix, orphans included) and items; a failed cleanup stays hidden and the next new session retries it. Settings are untouched. From 100 receipts (`src/shared/limits.ts`, provisional until G-003) the page suggests a new session. Thumbnails now load lazily. Verified with 105 unit tests (suite total) and Playwright against real AWS as a `smoke-test-` user: cancel kept both receipts; confirm cleared the Mac page in 0.8 s and the phone page in 2.1 s; the old session's items and photos were gone from DynamoDB and S3; the template stayed; the next upload landed in the new session.
+- **Code:** `src/app/api/session/new/route.ts`, `src/server/repo/sessions.ts`, `src/server/photos.ts`, `src/client/new-session.ts`, `src/client/receipts-screen.tsx`, `src/shared/limits.ts`
 
 ### T-011: M2 verification and long-use test
 
@@ -109,6 +105,7 @@ T-008, but after each other, because both change the receipt list and the receip
 - **Code:** none
 - **Description:** OMT QA verifies S-06 to S-09, and runs a session of 100 receipts and a tab open for 8 hours. Measures G-003.
 - **Acceptance:** Results in `docs/work/mvp/test-plan.md`. G-003 resolved with a measured value.
+- **Notes:** Thumbnails are the full 2048 px photos (T-010 made them lazy). If 100 receipts or 8 hours make the phone slow, small thumbnails made at upload are the likely fix. `SESSION_SIZE_PROMPT` in `src/shared/limits.ts` takes the G-003 value measured here.
 - **Blocks:** T-012 · **Blocked by:** T-008, T-010
 
 ## M3: Login and Cloud

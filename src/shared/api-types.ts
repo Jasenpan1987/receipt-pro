@@ -29,5 +29,8 @@ export type CreateReceiptResponse = { receipt: ReceiptView };
 
 export type ProcessReceiptResponse = { status: ReceiptStatus };
 
+/** `cleaned: false` means the old data is hidden but not yet deleted; the next new session retries. */
+export type NewSessionResponse = { sessionId: string; cleaned: boolean };
+
 /** Every API error. `error` is a plain Chinese message the page can show as is. */
 export type ApiError = { error: string };

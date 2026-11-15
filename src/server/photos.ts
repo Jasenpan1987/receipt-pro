@@ -1,4 +1,10 @@
-import { GetObjectCommand, PutObjectCommand, type S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  type S3Client
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -44,4 +50,38 @@ export function photoUrl(
     signingDate,
     expiresIn: (2 * HOUR_MS) / 1000
   });
+}
+
+/**
+ * S-06 criterion 3: deletes every photo of a session, orphans from failed uploads included (they
+ * share the prefix). Safe to repeat. Returns the count.
+ */
+export async function deleteSessionPhotos(
+  s3: S3Client,
+  bucket: string,
+  userId: string,
+  sessionId: string
+): Promise<number> {
+  let deleted = 0;
+  let token: string | undefined;
+  do {
+    const page = await s3.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: `photos/${userId}/${sessionId}/`,
+        ContinuationToken: token
+      })
+    );
+    const keys = (page.Contents ?? []).flatMap(object => (object.Key ? [object.Key] : []));
+    for (let start = 0; start < keys.length; start += 10) {
+      await Promise.all(
+        keys
+          .slice(start, start + 10)
+          .map(key => s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key })))
+      );
+    }
+    deleted += keys.length;
+    token = page.NextContinuationToken;
+  } while (token);
+  return deleted;
 }
