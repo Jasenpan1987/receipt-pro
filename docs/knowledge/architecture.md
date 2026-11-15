@@ -84,10 +84,11 @@ Each receipt is one independent request: no earlier receipts or conversation (AD
 
 - System prompt: fixed output rules (only the receipt text, the three unreadable rules from `docs/knowledge/business.md#unreadable-receipts`), followed by the user's template, word list, and custom instructions.
 - JSON output mode, `response_format: {"type": "json_object"}`, asking for `{"status": "ok" | "unreadable", "text": "..."}`. The server keeps only `text`. This is the code guard against conversational text that ADR-002 left to the prompt. JSON mode works together with image input through the AI SDK (T-002, `docs/knowledge/tech-conventions.md#resolved-deepseek-flash-accepts-images-through-the-ai-sdk-t-002-2026-11-15`).
+- `temperature: 0`: the same photo gives the same text far more often (DeepSeek defaults to 1.0, and outputs of one receipt varied run to run). Not fully deterministic: in 3 runs on one stored photo, 1 dropped an item.
 - Thinking mode off (`providerOptions.deepseek.thinking.type: "disabled"`): about 2 s per receipt instead of 3–38 s, and no less accurate on the builder's receipts (T-002).
 - The photo is sent as upright pixels; the browser's re-encoding does this. A sideways photo with only an orientation tag is misread.
 - Blank or invalid JSON (the docs say blank content can happen) gets one retry, then `status: failed`. The invalid replies seen in T-002 were a JSON object, free text, then a second JSON object; strict parsing rejects them.
-- No template yet: the returned `text` is saved as the template.
+- No template yet: the builder's usual template is used and saved (`docs/knowledge/business.md#output`).
 
 ### Sync
 

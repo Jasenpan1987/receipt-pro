@@ -82,6 +82,9 @@ export async function readReceipt(input: {
         ],
         output: Output.object({ schema }),
         // T-002: thinking off is about 2 s instead of 3–38 s, and no less accurate (G-007).
+        // Reading a receipt has one right answer: no sampling randomness, so the same photo gives
+        // the same text (DeepSeek defaults to 1.0).
+        temperature: 0,
         providerOptions: { deepseek: { thinking: { type: "disabled" } } },
         maxRetries: 1,
         abortSignal: AbortSignal.timeout(CALL_TIMEOUT_MS)

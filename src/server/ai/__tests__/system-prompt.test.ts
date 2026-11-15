@@ -3,9 +3,17 @@ import { buildSystemPrompt, DEFAULT_TEMPLATE } from "src/server/ai/system-prompt
 const empty = { words: [], instructions: [] };
 
 describe("buildSystemPrompt", () => {
-  it("uses the builder's usual template as the example while none is saved", () => {
+  it("uses the builder's usual template while none is saved", () => {
+    expect(buildSystemPrompt(empty)).toContain(`模板：\n${DEFAULT_TEMPLATE}`);
+  });
+
+  // Builder, 2026-11-15: one way to write each field, so outputs never mix 现金 and CASH.
+  it("fixes how the payment method, merchant, and items are written", () => {
     const prompt = buildSystemPrompt(empty);
-    expect(prompt).toContain(`用户还没有保存模板，按这个例子的格式写）：\n${DEFAULT_TEMPLATE}`);
+    expect(prompt).toContain('付款方式只写 "现金" 或 "刷卡"');
+    expect(prompt).toContain("商家写大家平时叫的简称");
+    expect(prompt).toContain("每个商品只写一个简短的中文名");
+    expect(prompt).toContain("所有中文都用简体字");
   });
 
   it("uses the saved template once there is one", () => {

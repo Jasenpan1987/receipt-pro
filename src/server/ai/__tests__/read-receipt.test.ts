@@ -31,6 +31,8 @@ describe("readReceipt", () => {
     const call = mock.doGenerateCalls[0];
     expect(call.responseFormat?.type).toBe("json");
     expect(call.providerOptions).toEqual({ deepseek: { thinking: { type: "disabled" } } });
+    // Builder review, 2026-11-15: the same receipt read twice must not come out two ways.
+    expect(call.temperature).toBe(0);
     expect(call.prompt[0]).toMatchObject({ role: "system", content: "RULES" });
     expect(JSON.stringify(call.prompt[1])).toContain('"mediaType":"image/jpeg"');
   });

@@ -156,4 +156,6 @@ pharmacy; one receipt photographed twice), 30 calls in total. Photos stay out of
 
 Recommendation for T-004: thinking off, JSON mode, strict parsing, one retry on an invalid reply. A cheap code check, item prices against the printed subtotal, would have flagged every wrong price above; it is not in the MVP.
 
-Reproduce one photo, thinking off only: `PROBE_THINKING=off pnpm exec tsx --env-file=.env.local scripts/probe-deepseek.ts probe-photos/<photo>`. `PROBE_PROMPT=checks` adds the extra rules.
+Reproduce one photo, thinking off only: `PROBE_THINKING=off pnpm exec tsx --env-file=.env.local scripts/probe-deepseek.ts probe-photos/<photo>`. The probe now uses the app's prompt (`src/server/ai/system-prompt.ts`); the T-002 numbers above came from an earlier draft.
+
+**Format rules and temperature (2026-11-15, after the builder's review).** With the field rules in `docs/knowledge/business.md#output` and `temperature: 0`, all 9 photos tried (the 6 above and 3 more of the builder's) gave only `现金` or `刷卡`, short merchant names, short simplified item names. Run three times on the same bytes, a photo gave the same text in most runs, not all: one run dropped an item. A re-encoded copy of a photo can read differently from the original. Item-level misreads remain (G-004): the two-line layout, swapped prices on adjacent items, unknown brands.

@@ -82,7 +82,7 @@ As the builder, I get exactly the text my template describes, and nothing else.
 4. Merchant names stay in the original language unless the word list maps them. Example: `Coles` → `红超市`; `Costco` stays `Costco`.
 5. Item names are in Chinese, unless the word list says otherwise.
 6. Discounts are visible in the output, written the way the custom instructions say.
-7. If the user has no template yet, the first output becomes the user's template and is saved to their settings.
+7. If the user has no template yet, the builder's usual template (`docs/knowledge/business.md#output`) is used and saved to their settings. (Changed by the builder on 2026-11-15; it was: the first output becomes the template.)
 8. Unreadable content follows the three rules in `docs/knowledge/business.md#unreadable-receipts`:
    - Whole receipt or most of it unreadable: only `看不清，请重拍`, and no copy button.
    - One item unreadable: `？？看不清` in its place.

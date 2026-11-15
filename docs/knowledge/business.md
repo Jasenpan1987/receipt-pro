@@ -31,7 +31,16 @@ Terms are defined in `docs/knowledge/glossary.md`.
 - Merchant names stay in the original language unless the word list maps them. `Coles` → `红超市`; `Costco` stays `Costco`.
 - Item names are translated into Chinese by default; a word-list entry overrides the default translation.
 - Discounts must be visible in the output. How they are written is a custom instruction, not fixed behaviour.
-- If no template exists yet, the AI's first output becomes the user's default template.
+- If no template exists yet, the builder's usual template above is saved as the template on first use, not the first output: the first output carries that receipt's items and any slip into every later receipt (builder, 2026-11-15).
+
+Every field has one way to be written, so outputs never mix styles (builder, 2026-11-15, after reviewing real outputs that mixed `现金` and `CASH`):
+
+- **Payment method:** only `现金` or `刷卡`. Cash is `现金`; anything else (any card, EFTPOS, Apple Pay) is `刷卡`. Loyalty cards printed on the receipt (Flybuys) are not a payment method.
+- **Merchant:** the short name people use, without `Pty Ltd`, branch, or address. A receipt with a Chinese store name uses only the Chinese name (`佳旺超市`, `牛车水`); otherwise the short English name (`Coles`, `Bunnings`).
+- **Items:** one short Chinese name each, no brand, size, weight, count, or unit price; one name only, no alternatives after a slash. The amount is the line's total.
+- **All Chinese in simplified characters**, even when the receipt prints traditional ones.
+- **Amounts** as printed, no currency symbol. Not written: loyalty points, total savings, GST, change.
+- A word-list entry or custom instruction overrides the merchant, item, and payment rules. An unknown brand (`V BLUE`, an energy drink) is a word-list entry, not a prompt change.
 
 ## Unreadable Receipts
 

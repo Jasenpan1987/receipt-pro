@@ -1,13 +1,13 @@
 // T-002 probe: sends receipt photos to `deepseek-flash` through the AI SDK and reports, per call,
 // whether the image and JSON output both reached DeepSeek, the time, the tokens, blank or
-// invalid replies, and the text. The prompt is a draft; T-004 owns the real one.
+// invalid replies, and the text. It uses the app's prompt (src/server/ai/system-prompt.ts).
 //
 //   pnpm exec tsx --env-file=.env.local scripts/probe-deepseek.ts <photo> [<photo> ...]
 //
 // Photos are re-encoded the way the app does (upright, JPEG, longest side at most 2048) with
 // macOS `sips` and Python's Pillow, which must be installed.
 // Each photo runs twice: thinking off, then thinking on (DeepSeek's default). PROBE_THINKING=off|on
-// runs one mode; PROBE_PROMPT=checks adds layout and self-check rules.
+// runs one mode.
 
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -16,6 +16,7 @@ import { basename, join } from "node:path";
 
 import { createDeepSeek } from "@ai-sdk/deepseek";
 import { generateText, jsonSchema, NoObjectGeneratedError, Output } from "ai";
+import { buildSystemPrompt } from "src/server/ai/system-prompt";
 import { getConfig } from "src/server/config";
 
 // The SDK warns that the schema goes into the system message: expected, see T-002 findings.
@@ -24,30 +25,8 @@ import { getConfig } from "src/server/config";
 const MODEL = "deepseek-flash";
 const MAX_SIDE = 2048;
 
-// The builder's usual template (docs/knowledge/business.md#output).
-const TEMPLATE = "2026 年 10 月 1 日 Costco 青菜 3.25 水 2.0 啤酒 10.0 共1234，现金";
-
-const SYSTEM = `你读取小票照片，按用户的模板写出一行纯文本。只返回 JSON：{"status": "ok" 或 "unreadable", "text": "..."}。
-
-规则：
-1. text 只包含小票内容，严格按模板的格式。不要问候、解释、提示或任何其他话。
-2. 日期写成模板里的样子。商家名保留小票上的原文。商品名翻译成中文。
-3. 每个商品后面写它的价格。折扣也要写出来。
-4. "共" 后面写小票上印的总额，不要自己加。最后写付款方式。
-5. 整张或大部分看不清：status 为 "unreadable"，text 为 "看不清，请重拍"。不是小票的照片也这样处理。
-6. 某个商品完全看不清：在它的位置写 "？？看不清"。商品名看得清、价格看不清：写 "<商品名> 价格？？看不清"。
-
-模板：
-${TEMPLATE}`;
-
-// PROBE_PROMPT=checks adds layout and self-check rules (T-002 experiment for T-004).
-const CHECKS = `
-补充规则：
-7. 一个商品可能占两行（中文名一行、英文名一行），价格只印在其中一行。不要把同一个商品拆成两个。小票上有 Item Count 时，商品数要和它一致。
-8. 写完后核对：各商品价格之和应等于小计（Subtotal）。对不上就重新看一遍价格。
-9. 日期是澳大利亚格式：日/月/年。"共" 后面只写数字，不带货币符号。`;
-
-const system = () => (process.env.PROBE_PROMPT === "checks" ? SYSTEM + CHECKS : SYSTEM);
+// The app's own prompt with no saved settings, so the probe measures what users get.
+const system = () => buildSystemPrompt({ words: [], instructions: [] });
 
 // PROBE_THINKING=off|on runs one mode only; default runs both.
 const thinkingModes = (): boolean[] =>
@@ -130,6 +109,9 @@ async function readReceipt(photo: Uint8Array, thinking: boolean) {
         }
       ],
       output: Output.object({ schema }),
+      // Reading a receipt has one right answer: no sampling randomness, so the same photo gives
+      // the same text (DeepSeek defaults to 1.0).
+      temperature: 0,
       providerOptions: { deepseek: { thinking: { type: thinking ? "enabled" : "disabled" } } },
       maxRetries: 0,
       include: { requestBody: true }

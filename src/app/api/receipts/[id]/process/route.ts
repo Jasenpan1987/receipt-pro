@@ -1,6 +1,6 @@
 import { getModel } from "src/server/ai/model";
 import { ReadFailedError, readReceipt } from "src/server/ai/read-receipt";
-import { buildSystemPrompt } from "src/server/ai/system-prompt";
+import { buildSystemPrompt, DEFAULT_TEMPLATE } from "src/server/ai/system-prompt";
 import { getAws } from "src/server/aws";
 import { getAwsConfig } from "src/server/config";
 import { errorResponse } from "src/server/http";
@@ -77,9 +77,11 @@ export async function POST(
 
     const { outcome, hadTemplate } = await run(store, receipt);
     await finishAttempt(store, { ...receipt, attempts: attempt }, attempt, outcome);
-    // S-03 criterion 7: with no template yet, the first output becomes the template.
-    if (outcome.status === "done" && !hadTemplate) {
-      await saveTemplateIfMissing(store, userId, outcome.text);
+    // S-03 criterion 7 (builder, 2026-11-15): with no template yet, the builder's usual template is
+    // saved, not the first output, which would carry that receipt's items and slips into every
+    // later one.
+    if (!hadTemplate) {
+      await saveTemplateIfMissing(store, userId, DEFAULT_TEMPLATE);
     }
     return Response.json({ status: outcome.status } satisfies ProcessReceiptResponse);
   } catch (error) {
