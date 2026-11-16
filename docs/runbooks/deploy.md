@@ -11,10 +11,16 @@ Why it is built this way: `docs/records/decisions/ADR-007-deploy-lambda-github-a
 Every push to `main` runs the workflow **Deploy** (`.github/workflows/deploy.yml`):
 
 1. **Check and build** (Linux arm64): `oxfmt --check`, `pnpm type`, `pnpm lint`, `pnpm test`, `pnpm build`, `pnpm package:lambda`. A failure here deploys nothing.
-2. **Deploy** (environment `production`): updates stack `receipt-pro-app` from `deploy/app.yaml`, uploads `dist/lambda.zip` to function `receipt-pro`, then checks that `/login` answers 200.
+2. **Deploy** (environment `production`, Linux arm64 as well): updates stack `receipt-pro-app` from `deploy/app.yaml`, uploads `dist/lambda.zip` to function `receipt-pro`, then checks that `/login` answers 200.
 
 Watch it with `gh run watch` or on the repository's Actions page. Run it again without a push:
 Actions → Deploy → Run workflow, or `gh workflow run Deploy`.
+
+If a job fails with "The job was not started because it repeatedly failed to be acquired",
+GitHub found no runner for it, and nothing reached AWS. Re-run the failed job:
+`gh run rerun <run-id> --failed`. On 2026-11-16 this happened twice in a row to the deploy job on
+`ubuntu-24.04`; it now runs on `ubuntu-24.04-arm`, like the build, and installs the AWS CLI if the
+image lacks it.
 
 ## One-Time Setup
 
