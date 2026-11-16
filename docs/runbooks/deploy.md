@@ -2,7 +2,7 @@
 
 > **Purpose:** How the app reaches Lambda, how to set deployment up once, change a secret, roll back, and read logs.
 > **Status:** Current
-> **Verified against:** the first successful deploy, run `43718373723`, 2026-11-15; certificate, CloudFront, and DNS steps written for T-014 on 2026-11-17, not yet run
+> **Verified against:** the first successful deploy, run `43718373723`, 2026-11-15; certificate, CloudFront, and DNS added by T-014, first run `43895844512`, 2026-11-17
 
 Why it is built this way: `docs/records/decisions/ADR-007-deploy-lambda-github-actions.md`.
 

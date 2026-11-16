@@ -11,4 +11,4 @@
 **Why:** it is the only epic; the MVP loop comes before everything else.
 **Primary code:** `src/app/`, `src/client/`, `src/server/`.
 
-Next: T-014, the builder's domain (waiting for the domain and its DNS provider, G-005). The app already runs on Lambda (T-013), deployed by GitHub Actions on every push to `main`. Done by 2026-11-16: T-001 to T-010, T-012, T-013, T-017 to T-022.
+Next: T-015, M3 verification in the cloud. The app runs at `https://receipts.jasenpan.com` (T-014, 2026-11-17), on Lambda behind CloudFront, deployed by GitHub Actions on every push to `main`. Done: T-001 to T-010, T-012 to T-014, T-017 to T-022.

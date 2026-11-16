@@ -3,7 +3,7 @@
 > **Status:** in progress; M1 accepted 2026-11-15
 > **Goal:** The capture-to-copy loop: phone photo in, one line of plain text out, copied on the computer into Word.
 > **Current milestone:** M3, login and cloud (`docs/work/mvp/milestones.md#m3-login-and-cloud`); M2's verification T-011 is in backlog
-> **Current task:** T-014, the builder's domain (waiting for the domain and its DNS provider, G-005). Done: T-001 to T-010, T-012, T-013, T-017 to T-022
+> **Current task:** T-015, M3 verification in the cloud (unblocked by T-014). Done: T-001 to T-010, T-012 to T-014, T-017 to T-022
 
 ## Read First
 
@@ -38,8 +38,8 @@
 
 Requirements v1.1. M1 is accepted (`docs/records/completed-work/mvp-m1.md`). M2's features are
 built; its verification T-011 waits in backlog. The app runs on Lambda in the personal account
-at its Function URL, deployed by GitHub Actions on every push to `main` that changes more than
-docs (ADR-007, `docs/runbooks/deploy.md`). Since the first real use (2026-11-16): small
+at `https://receipts.jasenpan.com` through CloudFront (T-014), deployed by GitHub Actions on every
+push to `main` that changes more than docs (ADR-007, `docs/runbooks/deploy.md`). Since the first real use (2026-11-16): small
 thumbnails and stable photo URLs (T-019), the photo viewer (T-020), design B on every page
 (T-021), and item names with their brand (T-022). Table `receipt-pro` and bucket
 `receipt-pro-photos-jasen` are the one environment shared by the Mac and Lambda (ADR-005). Reading
@@ -47,5 +47,5 @@ accuracy is measured on six photos only (G-004).
 
 ## Next Action
 
-T-014: put the app on the builder's domain. The builder names the domain and its DNS provider
-first (G-005); the plan and the code issue to fix are in T-014's notes.
+T-015: M3 verification on the deployed app at `https://receipts.jasenpan.com`, from the installed
+home-screen app and the Mac; its notes collect the phone checks waiting for it, T-014's included.

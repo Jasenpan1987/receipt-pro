@@ -43,7 +43,7 @@
 
 **Tasks:** T-012, T-013, T-014, T-015
 
-**Status:** T-012 and T-013 done (the app runs on Lambda at its Function URL); T-014 next; T-015 left
+**Status:** T-012 to T-014 done (the app runs on Lambda at `https://receipts.jasenpan.com`); T-015 left
 
 **Definition of done**
 
