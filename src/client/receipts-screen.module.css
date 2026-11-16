@@ -1,94 +1,123 @@
+/* Design B (T-021). Phone first; the computer layout starts at 900px. */
+
 .screen {
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: 0 1rem 2rem;
+  min-height: 100vh;
 }
+
+/* ---------- header ---------- */
 
 .header {
   position: sticky;
   top: 0;
-  z-index: 1;
-  padding: 1rem 0 0.75rem;
-  background: #fafafa;
-}
-
-.titleRow {
+  z-index: 5;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.75rem;
+  gap: 0.75rem;
+  padding: calc(0.625rem + env(safe-area-inset-top)) 1rem 0.625rem;
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  backdrop-filter: saturate(1.4) blur(14px);
+  -webkit-backdrop-filter: saturate(1.4) blur(14px);
 }
 
 .title {
+  flex: 1;
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.5rem;
+  letter-spacing: 0.02em;
 }
 
-.rulesLink {
-  margin-left: auto;
-  margin-right: 0.75rem;
-  color: #1a73e8;
+.deskActions {
+  display: none;
+  gap: 0.5rem;
+}
+
+.ghost {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+  color: var(--text);
   font-size: 0.95rem;
+  font-weight: 600;
   text-decoration: none;
+  cursor: pointer;
 }
 
-.addRule {
-  margin-right: 0.5rem;
-  padding: 0.4rem 0.9rem;
-  border: 1px solid #1a73e8;
-  border-radius: 0.5rem;
-  background: #fff;
-  color: #1a73e8;
-  font-size: 0.95rem;
-}
-
-.saved {
-  padding: 0.75rem;
-  border-radius: 0.75rem;
-  background: #e6f4ea;
-  color: #188038;
-}
-
-.newSession {
-  padding: 0.4rem 0.9rem;
-  border: 1px solid #c5221f;
-  border-radius: 0.5rem;
-  background: #fff;
-  color: #c5221f;
-  font-size: 0.95rem;
-}
-
-.newSession:disabled {
+.ghost:disabled {
   opacity: 0.5;
 }
 
-.actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
+.dangerText {
+  color: var(--bad);
 }
 
-.action {
-  position: relative;
+/* 44px: Apple's smallest comfortable tap target. */
+.more {
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  font-size: 1.375rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* ---------- menu (phone) ---------- */
+
+.shade {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+}
+
+.menu {
+  position: fixed;
+  top: calc(3.875rem + env(safe-area-inset-top));
+  right: 0.75rem;
+  z-index: 30;
+  width: 14rem;
+  padding: 0.375rem;
+  border: 1px solid var(--line);
+  border-radius: 0.875rem;
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgb(43 33 24 / 18%);
+}
+
+.menuItem {
   display: flex;
   align-items: center;
-  justify-content: center;
-  min-height: 3.25rem;
-  border-radius: 0.75rem;
-  background: #1a73e8;
-  color: #fff;
-  font-size: 1.05rem;
-  font-weight: 600;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 3rem;
+  padding: 0 0.875rem;
+  border: 0;
+  border-radius: 0.625rem;
+  background: none;
+  font-size: 1rem;
+  text-align: left;
   cursor: pointer;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
 }
 
-.action:active {
-  background: #1557b0;
+.menuItem:active {
+  background: var(--surface-2);
 }
 
-/* Visually hidden but still clickable through its label (display: none breaks some iOS versions). */
+.menuItem small {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.menuLine {
+  height: 1px;
+  margin: 0.25rem 0.5rem;
+  background: var(--line);
+}
+
+/* Visually hidden but still clickable through its labels (display: none breaks some iOS versions). */
 .fileInput {
   position: absolute;
   width: 1px;
@@ -98,8 +127,43 @@
   pointer-events: none;
 }
 
+/* ---------- list ---------- */
+
+.main {
+  padding: 0.25rem 0.75rem calc(7.5rem + env(safe-area-inset-bottom));
+}
+
+.notice {
+  margin: 0 0 0.625rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-small);
+  background: var(--busy-soft);
+  color: var(--text);
+}
+
+.notice p {
+  margin: 0 0 0.5rem;
+}
+
+.noticeBad {
+  background: var(--bad-soft);
+}
+
+.noticeGood {
+  background: var(--done-soft);
+  color: var(--done);
+}
+
+.empty {
+  margin: 3rem 0;
+  text-align: center;
+  color: var(--muted);
+}
+
 .list {
-  margin: 0.5rem 0 0;
+  display: grid;
+  gap: 0.625rem;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
@@ -108,111 +172,328 @@
   display: flex;
   gap: 0.75rem;
   padding: 0.75rem;
-  margin-bottom: 0.75rem;
-  border-radius: 0.75rem;
-  background: #fff;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
-.thumbLink {
+.thumbButton {
   flex: none;
-  display: block;
+  align-self: flex-start;
   padding: 0;
   border: 0;
+  border-radius: 0.625rem;
   background: none;
   cursor: zoom-in;
 }
 
-.thumbLink:disabled {
+.thumbButton:disabled {
   cursor: default;
 }
 
 .thumb {
   display: block;
-  width: 4.5rem;
-  height: 6rem;
-  border-radius: 0.5rem;
+  width: 4rem;
+  height: 5.375rem;
+  border-radius: 0.625rem;
   object-fit: cover;
-  background: #eee;
+  background: var(--surface-2);
 }
 
 .body {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
 }
 
-.status {
-  margin: 0;
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.125rem 0.5625rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
-.busy {
-  color: #5f6368;
+.done {
+  color: var(--done);
+  background: var(--done-soft);
+}
+
+.busyTone {
+  color: var(--busy);
+  background: var(--busy-soft);
+}
+
+.busyTone::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.bad {
+  color: var(--bad);
+  background: var(--bad-soft);
+}
+
+.warn {
+  color: var(--busy);
+  background: var(--busy-soft);
+}
+
+.time {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.75rem;
 }
 
 .text {
-  margin: 0.25rem 0 0;
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.55;
   overflow-wrap: anywhere;
   /* Always selectable, so a failed copy can be done by hand. */
   user-select: text;
   -webkit-user-select: text;
 }
 
-.copyRow {
+/* Prices stand out on the computer, where receipts are checked against the photo. */
+.number {
+  font-weight: inherit;
+}
+
+.skeleton {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.skeleton span {
+  display: block;
+  height: 0.625rem;
+  border-radius: 0.375rem;
+  background: var(--surface-2);
+}
+
+.skeleton span:first-child {
+  width: 80%;
+}
+
+.skeleton span:last-child {
+  width: 55%;
+}
+
+.message {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
+  gap: 0.5rem;
+  margin-top: 0.125rem;
 }
 
 .copy {
-  padding: 0.5rem 1.25rem;
-  border: none;
-  border-radius: 0.5rem;
-  background: #1a73e8;
-  color: #fff;
-  font-size: 1rem;
-  font-weight: 600;
+  min-height: 2.5rem;
+  padding: 0 1.25rem;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 0.9375rem;
+  font-weight: 700;
   cursor: pointer;
 }
 
 .copy:active {
-  background: #1557b0;
+  background: var(--primary-pressed);
 }
 
-.copied {
-  color: #188038;
+.copiedButton {
+  background: var(--done);
+}
+
+.soft {
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 0.9375rem;
   font-weight: 600;
+  cursor: pointer;
 }
 
-.detail {
-  margin: 0.25rem 0 0;
-  color: #c5221f;
-  font-size: 0.95rem;
+.quiet {
+  min-height: 2.5rem;
+  padding: 0 0.5rem;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  cursor: pointer;
 }
 
-.secondary {
-  margin-top: 0.5rem;
-  padding: 0.5rem 1rem;
-  border: 1px solid #1a73e8;
-  border-radius: 0.5rem;
-  background: #fff;
-  color: #1a73e8;
-  font-size: 1rem;
+/* ---------- bottom bar (phone) ---------- */
+
+.bar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0.5rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
-.notice {
-  padding: 0.75rem;
-  border-radius: 0.75rem;
-  background: #fce8e6;
+.bar svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.notice p {
-  margin: 0;
+.side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.125rem;
+  width: 4.5rem;
+  height: 3.5rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
 }
 
-.empty {
-  margin: 2rem 0;
-  text-align: center;
-  color: #5f6368;
+/* The largest target on the page: what the phone is for. */
+.shoot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.125rem;
+  width: 4.75rem;
+  height: 4.75rem;
+  margin-top: -1.875rem;
+  border: 5px solid var(--bg);
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--primary) 45%, transparent);
+  cursor: pointer;
+  user-select: none;
+}
+
+.shoot:active {
+  background: var(--primary-pressed);
+}
+
+/* ---------- computer ---------- */
+
+@media (min-width: 900px) {
+  .header {
+    padding: 1rem 1.75rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .deskActions {
+    display: flex;
+  }
+
+  .more,
+  .menu,
+  .shade,
+  .bar {
+    display: none;
+  }
+
+  .main {
+    max-width: 75rem;
+    margin: 0 auto;
+    padding: 1rem 1.25rem 2.5rem;
+  }
+
+  .list {
+    gap: 0.875rem;
+  }
+
+  /* One row per receipt: the photo beside its text, to check one against the other. */
+  .card {
+    gap: 1.25rem;
+    padding: 1rem;
+    align-items: stretch;
+  }
+
+  .thumb {
+    width: 14.5rem;
+    height: 19rem;
+    border-radius: 0.875rem;
+  }
+
+  .body {
+    gap: 0.75rem;
+  }
+
+  .text {
+    font-size: 1.125rem;
+    line-height: 1.8;
+  }
+
+  .number {
+    font-weight: 650;
+  }
+
+  .actions {
+    margin-top: auto;
+  }
+
+  .copy {
+    min-width: 10rem;
+    min-height: 3rem;
+    font-size: 1rem;
+  }
+
+  .soft,
+  .quiet {
+    min-height: 3rem;
+    font-size: 1rem;
+  }
 }

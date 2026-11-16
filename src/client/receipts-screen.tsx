@@ -4,10 +4,12 @@ import Link from "next/link";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { preparePhoto } from "src/client/compress-image";
 import { copyText } from "src/client/copy-text";
+import { logout } from "src/client/logout";
 import { startNewSession } from "src/client/new-session";
 import { PhotoViewer } from "src/client/photo-viewer";
 import { processReceipt } from "src/client/process-receipt";
 import { randomId } from "src/client/random-id";
+import { type CardView, ReceiptCard } from "src/client/receipt-card";
 import { canRegenerate, statusLabel } from "src/client/receipt-labels";
 import { RuleDialog } from "src/client/rule-dialog";
 import { StableUrls } from "src/client/stable-urls";
@@ -37,24 +39,6 @@ type PendingUpload = {
   retryable: boolean;
 };
 
-type Card = {
-  receiptId: string;
-  createdAt: string;
-  /** What the card shows: the small copy, or the photo for receipts from before T-019. */
-  imageUrl?: string;
-  /** Shown by a tap on the thumbnail: the full photo. */
-  photoUrl?: string;
-  label: string;
-  text?: string;
-  detail?: string;
-  retry?: PendingUpload;
-  busy: boolean;
-  /** Pending previews are local object URLs; only stored photos can fail to load and need new URLs. */
-  stored: boolean;
-  /** Offers 重新生成 (S-07). */
-  regenerate: boolean;
-};
-
 /** How long "已复制" stays on the card. */
 const COPIED_MESSAGE_MS = 2_000;
 
@@ -74,6 +58,7 @@ export function ReceiptsScreen() {
   const [ruleSaved, setRuleSaved] = useState(false);
   /** The full photo shown over the list, if any. */
   const [viewing, setViewing] = useState<string>();
+  const [menuOpen, setMenuOpen] = useState(false);
   const ruleSavedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const queue = useRef<Promise<void>>(Promise.resolve());
   const pendingRef = useRef<PendingUpload[]>([]);
@@ -97,6 +82,19 @@ export function ReceiptsScreen() {
     },
     []
   );
+
+  useEffect(() => {
+    if (!menuOpen) {
+      return;
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
 
   // Once the session has a receipt, the local copy is no longer needed.
   useEffect(() => {
@@ -236,193 +234,220 @@ export function ReceiptsScreen() {
   const pendingIds = new Set(pending.map(item => item.receiptId));
   const sessionReceipts = session?.receipts ?? [];
   const sessionIds = new Set(sessionReceipts.map(receipt => receipt.receiptId));
-  const cards: Card[] = [
+  const cards: Array<CardView & { retry?: PendingUpload }> = [
     ...pending.map(item => ({
       receiptId: item.receiptId,
       createdAt: item.createdAt,
       imageUrl: item.previewUrl,
       label: item.state === "uploading" ? "上传中…" : "上传失败",
+      tone: item.state === "uploading" ? ("busy" as const) : ("bad" as const),
       detail: item.message,
       retry: item.state === "failed" && item.retryable ? item : undefined,
-      busy: item.state === "uploading",
-      stored: false,
-      regenerate: false
+      canRetry: item.state === "failed" && item.retryable,
+      canRegenerate: false,
+      stored: false
     })),
     ...[...recent.filter(receipt => !sessionIds.has(receipt.receiptId)), ...sessionReceipts]
       .filter(receipt => !pendingIds.has(receipt.receiptId))
-      .map(receipt => ({
-        receiptId: receipt.receiptId,
-        createdAt: receipt.createdAt,
-        imageUrl: stableUrls.current.get(receipt.receiptId, receipt.thumbUrl ?? receipt.photoUrl),
-        photoUrl: receipt.photoUrl,
-        label: regenerating.has(receipt.receiptId) ? "重新生成中…" : statusLabel(receipt),
-        text:
-          receipt.status === "done" && !regenerating.has(receipt.receiptId)
-            ? receipt.text
-            : undefined,
-        detail:
-          receipt.status === "failed" && !regenerating.has(receipt.receiptId)
-            ? receipt.error
-            : undefined,
-        busy: receipt.status === "processing" || regenerating.has(receipt.receiptId),
-        stored: true,
-        regenerate: canRegenerate(receipt) && !regenerating.has(receipt.receiptId)
-      }))
+      .map(receipt => {
+        const rerunning = regenerating.has(receipt.receiptId);
+        const busy = receipt.status === "processing" || rerunning;
+        return {
+          receiptId: receipt.receiptId,
+          createdAt: receipt.createdAt,
+          imageUrl: stableUrls.current.get(receipt.receiptId, receipt.thumbUrl ?? receipt.photoUrl),
+          photoUrl: receipt.photoUrl,
+          label: rerunning ? "重新生成中…" : statusLabel(receipt),
+          tone: busy
+            ? ("busy" as const)
+            : receipt.status === "done"
+              ? ("done" as const)
+              : receipt.status === "failed"
+                ? ("bad" as const)
+                : ("warn" as const),
+          text: receipt.status === "done" && !rerunning ? receipt.text : undefined,
+          detail: receipt.status === "failed" && !rerunning ? receipt.error : undefined,
+          canRegenerate: canRegenerate(receipt) && !rerunning,
+          canRetry: false,
+          stored: true
+        };
+      })
   ].sort(newestFirst);
+
+  const newSessionLabel = clearing ? "正在清空…" : "新 session";
 
   return (
     <div className={styles.screen}>
       <header className={styles.header}>
-        <div className={styles.titleRow}>
-          <h1 className={styles.title}>receipt-pro</h1>
-          <Link className={styles.rulesLink} href="/rules">
-            规则
-          </Link>
-          <button className={styles.addRule} type="button" onClick={() => setAddingRule(true)}>
+        <h1 className={styles.title}>receipt-pro</h1>
+        {/* The computer: everything in sight, nothing to reach for. */}
+        <nav className={styles.deskActions}>
+          <label className={styles.ghost} htmlFor="pick-library">
+            选照片
+          </label>
+          <button className={styles.ghost} type="button" onClick={() => setAddingRule(true)}>
             加规则
           </button>
+          <Link className={styles.ghost} href="/rules">
+            规则
+          </Link>
           <button
-            className={styles.newSession}
+            className={`${styles.ghost} ${styles.dangerText}`}
             type="button"
             disabled={clearing}
             onClick={() => void onNewSession()}
           >
-            {clearing ? "正在清空…" : "新 session"}
+            {newSessionLabel}
           </button>
-        </div>
-        <div className={styles.actions}>
-          <label className={styles.action}>
-            拍照
-            <input
-              className={styles.fileInput}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={onFiles}
-            />
-          </label>
-          <label className={styles.action}>
-            从相册选
-            <input
-              className={styles.fileInput}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={onFiles}
-            />
-          </label>
-        </div>
+        </nav>
+        {/* The phone: rarely used actions behind one button, away from the thumb. */}
+        <button
+          className={styles.more}
+          type="button"
+          aria-label="更多"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen(open => !open)}
+        >
+          ⋯
+        </button>
       </header>
 
-      {loadState === "failed" && (
-        <div className={styles.notice} role="alert">
-          <p>加载失败，请检查网络后重试。</p>
-          <button className={styles.secondary} type="button" onClick={() => refresh(true)}>
-            重试
-          </button>
-        </div>
-      )}
-      {ruleSaved && (
-        <p className={styles.saved} role="status">
-          规则已保存，从下一张小票开始生效。已有的小票可以点“重新生成”。
-        </p>
-      )}
-      {addingRule && <RuleDialog onClose={onRuleDialogClose} />}
-      {viewing && <PhotoViewer url={viewing} onClose={() => setViewing(undefined)} />}
-      {sessionReceipts.length >= SESSION_SIZE_PROMPT && (
-        <p className={styles.notice}>
-          这一批已经有 {sessionReceipts.length} 张小票了。复制完以后，可以点“新
-          session”开始新的一批。
-        </p>
-      )}
-      {loadState === "loading" && cards.length === 0 && <p className={styles.empty}>正在加载…</p>}
-      {loadState === "ready" && cards.length === 0 && (
-        <p className={styles.empty}>还没有小票。拍一张试试。</p>
+      {menuOpen && (
+        <>
+          <div className={styles.shade} aria-hidden="true" onClick={() => setMenuOpen(false)} />
+          <div className={styles.menu} role="menu">
+            <button
+              className={styles.menuItem}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                setAddingRule(true);
+              }}
+            >
+              加规则<small>用一句话改写法</small>
+            </button>
+            <div className={styles.menuLine} />
+            <button
+              className={`${styles.menuItem} ${styles.dangerText}`}
+              type="button"
+              role="menuitem"
+              disabled={clearing}
+              onClick={() => {
+                setMenuOpen(false);
+                void onNewSession();
+              }}
+            >
+              {newSessionLabel}
+              <small>清空这一批</small>
+            </button>
+            <button
+              className={styles.menuItem}
+              type="button"
+              role="menuitem"
+              onClick={() => void logout()}
+            >
+              退出登录
+            </button>
+          </div>
+        </>
       )}
 
-      <ul className={styles.list} aria-live="polite">
-        {cards.map(card => (
-          <li key={card.receiptId} className={styles.card}>
-            {/* Shows the photo larger over the list (S-05 criterion 3). Plain <img>: photos are
-                private, behind short-lived presigned URLs, and must not pass through the
-                Next.js image optimizer and its cache. */}
-            <button
-              className={styles.thumbLink}
-              type="button"
-              aria-label="查看大图"
-              disabled={!card.photoUrl}
-              onClick={() => setViewing(card.photoUrl)}
-            >
-              {card.imageUrl ? (
-                // oxlint-disable-next-line nextjs/no-img-element
-                <img
-                  className={styles.thumb}
-                  src={card.imageUrl}
-                  alt="小票照片"
-                  // Receipts from before T-019 show the full photo: only decode the ones on screen.
-                  loading="lazy"
-                  decoding="async"
-                  // An expired or broken URL: take the newest one, and ask for the whole session,
-                  // which signs new ones (at most once a minute per receipt).
-                  onError={
-                    card.stored
-                      ? () => {
-                          if (stableUrls.current.failed(card.receiptId)) {
-                            refresh(true);
-                          }
-                        }
-                      : undefined
-                  }
-                />
-              ) : (
-                // A queued photo before its small copy exists.
-                <span className={styles.thumb} aria-hidden="true" />
-              )}
+      {/* One pair of inputs for every button that picks photos; labels open them. */}
+      <input
+        id="pick-camera"
+        className={styles.fileInput}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={onFiles}
+      />
+      <input
+        id="pick-library"
+        className={styles.fileInput}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={onFiles}
+      />
+
+      <main className={styles.main}>
+        {loadState === "failed" && (
+          <div className={`${styles.notice} ${styles.noticeBad}`} role="alert">
+            <p>加载失败，请检查网络后重试。</p>
+            <button className={styles.soft} type="button" onClick={() => refresh(true)}>
+              重试
             </button>
-            <div className={styles.body}>
-              <p className={card.busy ? `${styles.status} ${styles.busy}` : styles.status}>
-                {card.label}
-              </p>
-              {card.text && <p className={styles.text}>{card.text}</p>}
-              {card.detail && <p className={styles.detail}>{card.detail}</p>}
-              {card.text !== undefined && (
-                <div className={styles.copyRow}>
-                  <button
-                    className={styles.copy}
-                    type="button"
-                    onClick={() => onCopy(card.receiptId, card.text ?? "")}
-                  >
-                    复制
-                  </button>
-                  {copied?.receiptId === card.receiptId && (
-                    <span className={copied.ok ? styles.copied : styles.detail} role="status">
-                      {copied.ok ? "已复制" : "复制失败，请长按文字手动复制"}
-                    </span>
-                  )}
-                </div>
-              )}
-              {card.regenerate && (
-                <button
-                  className={styles.secondary}
-                  type="button"
-                  onClick={() => onRegenerate(card.receiptId)}
-                >
-                  重新生成
-                </button>
-              )}
-              {card.retry && (
-                <button
-                  className={styles.secondary}
-                  type="button"
-                  onClick={() => card.retry && enqueue(card.retry)}
-                >
-                  重试
-                </button>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
+          </div>
+        )}
+        {ruleSaved && (
+          <p className={`${styles.notice} ${styles.noticeGood}`} role="status">
+            规则已保存，从下一张小票开始生效。已有的小票可以点“重新生成”。
+          </p>
+        )}
+        {sessionReceipts.length >= SESSION_SIZE_PROMPT && (
+          <p className={styles.notice}>
+            这一批已经有 {sessionReceipts.length} 张小票了。复制完以后，可以开一个新
+            session，开始新的一批。
+          </p>
+        )}
+        {loadState === "loading" && cards.length === 0 && <p className={styles.empty}>正在加载…</p>}
+        {loadState === "ready" && cards.length === 0 && (
+          <p className={styles.empty}>还没有小票。拍一张试试。</p>
+        )}
+
+        <ul className={styles.list} aria-live="polite">
+          {cards.map(card => (
+            <ReceiptCard
+              key={card.receiptId}
+              card={card}
+              copied={copied?.receiptId === card.receiptId ? copied.ok : undefined}
+              onCopy={() => onCopy(card.receiptId, card.text ?? "")}
+              onRegenerate={() => onRegenerate(card.receiptId)}
+              onRetry={() => card.retry && enqueue(card.retry)}
+              onView={setViewing}
+              onImageError={() => {
+                // An expired or broken URL: take the newest one, and ask for the whole session,
+                // which signs new ones (at most once a minute per receipt).
+                if (stableUrls.current.failed(card.receiptId)) {
+                  refresh(true);
+                }
+              }}
+            />
+          ))}
+        </ul>
+      </main>
+
+      {/* The phone: the one thing done most, in thumb reach. */}
+      <nav className={styles.bar}>
+        <label className={styles.side} htmlFor="pick-library">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <circle cx="9" cy="10" r="2" />
+            <path d="m21 16-5-5-9 9" />
+          </svg>
+          相册
+        </label>
+        <label className={styles.shoot} htmlFor="pick-camera">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" />
+            <circle cx="12" cy="13.5" r="3.5" />
+          </svg>
+          拍照
+        </label>
+        <Link className={styles.side} href="/rules">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 6h13M8 12h13M8 18h13" />
+            <circle cx="4" cy="6" r="1" />
+            <circle cx="4" cy="12" r="1" />
+            <circle cx="4" cy="18" r="1" />
+          </svg>
+          规则
+        </Link>
+      </nav>
+
+      {addingRule && <RuleDialog onClose={onRuleDialogClose} />}
+      {viewing && <PhotoViewer url={viewing} onClose={() => setViewing(undefined)} />}
     </div>
   );
 }

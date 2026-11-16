@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { logout } from "src/client/logout";
+import { RuleDialog } from "src/client/rule-dialog";
 import { deleteRule, fetchRules } from "src/client/rules-api";
 import type { RulesView } from "src/shared/api-types";
 
@@ -12,6 +14,7 @@ export function RulesScreen() {
   const [rules, setRules] = useState<RulesView>();
   const [error, setError] = useState<string>();
   const [deleting, setDeleting] = useState<string>();
+  const [adding, setAdding] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -25,11 +28,6 @@ export function RulesScreen() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
-    window.location.replace("/login");
-  }
 
   async function remove(id: string, what: string) {
     if (
@@ -53,13 +51,20 @@ export function RulesScreen() {
     <div className={styles.screen}>
       <header className={styles.header}>
         <Link className={styles.back} href="/">
-          ← 返回
+          ← 小票
         </Link>
         <h1 className={styles.title}>规则</h1>
         <button className={styles.logout} type="button" onClick={() => void logout()}>
           退出登录
         </button>
       </header>
+
+      <div className={styles.intro}>
+        <p>小票都按这些规则写。删掉的规则只影响以后的小票。</p>
+        <button className={styles.add} type="button" onClick={() => setAdding(true)}>
+          加规则
+        </button>
+      </div>
 
       {error && (
         <div className={styles.notice} role="alert">
@@ -95,7 +100,7 @@ export function RulesScreen() {
           <section className={styles.section}>
             <h2 className={styles.heading}>词语替换</h2>
             {rules.words.length === 0 && (
-              <p className={styles.empty}>还没有。在首页点“加规则”添加。</p>
+              <p className={styles.empty}>还没有。点上面的“加规则”添加。</p>
             )}
             {rules.words.map(word => (
               <div key={word.id} className={styles.rule}>
@@ -117,7 +122,7 @@ export function RulesScreen() {
           <section className={styles.section}>
             <h2 className={styles.heading}>处理规则</h2>
             {rules.instructions.length === 0 && (
-              <p className={styles.empty}>还没有。在首页点“加规则”添加。</p>
+              <p className={styles.empty}>还没有。点上面的“加规则”添加。</p>
             )}
             {rules.instructions.map(instruction => (
               <div key={instruction.id} className={styles.rule}>
@@ -134,6 +139,17 @@ export function RulesScreen() {
             ))}
           </section>
         </>
+      )}
+
+      {adding && (
+        <RuleDialog
+          onClose={saved => {
+            setAdding(false);
+            if (saved) {
+              void load();
+            }
+          }}
+        />
       )}
     </div>
   );

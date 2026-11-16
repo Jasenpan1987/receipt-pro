@@ -1,3 +1,27 @@
+/* Design B, "warm notebook" (builder's choice, T-021). Every page takes its colours from here. */
+:root {
+  --bg: #faf6f0;
+  --surface: #fffdf9;
+  --surface-2: #f4ece1;
+  --line: #eadfce;
+  --text: #2b2118;
+  --muted: #8a7a68;
+  --primary: #e8590c;
+  --primary-pressed: #c94a08;
+  --on-primary: #ffffff;
+  --primary-soft: #fdebdf;
+  --done: #2f7d4f;
+  --done-soft: #e6f3ea;
+  --busy: #9a6b00;
+  --busy-soft: #fbf1d6;
+  --bad: #c0362c;
+  --bad-soft: #fde6e3;
+  --photo-bg: #2b2118;
+  --radius: 20px;
+  --radius-small: 12px;
+  --shadow: 0 1px 0 rgb(43 33 24 / 6%);
+}
+
 *,
 *::before,
 *::after {
@@ -15,6 +39,12 @@ body {
     -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
     "Noto Sans CJK SC", sans-serif;
   line-height: 1.5;
-  color: #1a1a1a;
-  background: #fafafa;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font: inherit;
+  color: inherit;
 }

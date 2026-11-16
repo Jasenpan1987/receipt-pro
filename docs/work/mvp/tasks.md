@@ -143,6 +143,14 @@ Accepted 2026-11-15. Detail and review: `docs/records/completed-work/mvp-m1.md`.
 - **Completion:** Builder, 2026-11-16: a new tab had to be closed and switched back from. A tap on a thumbnail now shows the full photo in a viewer over the list (`src/client/photo-viewer.tsx`): 90% of the width and 75% of the height on the phone (at most 60 rem wide on the Mac), the whole photo visible, a round close button at the top right. The close button, a tap anywhere but the photo, and Escape close it; a tap on the photo does not; the list does not scroll behind it. Checked in WebKit (iPhone profile) and Chromium on the local production build, with screenshots; one tab throughout, no page errors.
 - **Code:** `src/client/photo-viewer.tsx`, `src/client/photo-viewer.module.css`, `src/client/receipts-screen.tsx`, `src/client/receipts-screen.module.css`
 
+### T-021: Redesign every page in the builder's chosen style
+
+- **Type:** feature
+- **Status:** done (2026-11-16)
+- **Requirement:** `docs/work/mvp/requirements.md#non-functional-requirements` (ease of use; mobile first)
+- **Completion:** Builder, 2026-11-16: the pages were too plain. Of three HTML mockups (kept out of git), the builder chose B, "warm notebook", as good enough for the MVP, and approved the built pages on a local test server before the push. Colours are CSS variables in `src/app/globals.css`: off-white background, orange primary, round corners. Phone: `receipt-pro` and a "⋯" menu (加规则, 新 session in red, 退出登录) at the top; at the bottom, a large round 拍照 between 相册 and 规则, above the iPhone's home indicator. Computer (from 900 px): header buttons 选照片, 加规则, 规则, 新 session; one row per receipt, a 14.5 rem photo beside the text, a large 复制, prices in bold. The card is `src/client/receipt-card.tsx`; `/rules` got its own 加规则; the 加规则 dialog, photo viewer, and `/login` share the style. Checked in WebKit (iPhone profile) and Chromium on the local production build with screenshots of every page; Mac copy equal to the shown text; no page errors. 176 unit tests (suite total).
+- **Code:** `src/app/globals.css`, `src/app/layout.tsx`, `src/client/receipts-screen.tsx`, `src/client/receipt-card.tsx`, `src/client/receipt-text.tsx`, `src/client/logout.ts`, `src/client/*.module.css`, `src/client/rules-screen.tsx`, `src/client/login-screen.tsx`
+
 ## Later (not in a milestone)
 
 ### T-016: Reset a forgotten password

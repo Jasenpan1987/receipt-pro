@@ -1,35 +1,74 @@
+/* Design B (T-021). */
+
 .screen {
-  max-width: 40rem;
+  max-width: 44rem;
+  min-height: 100vh;
   margin: 0 auto;
-  padding: 1rem 1rem 2rem;
+  padding: calc(0.75rem + env(safe-area-inset-top)) 1rem calc(2rem + env(safe-area-inset-bottom));
 }
 
 .header {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
   margin-bottom: 1rem;
 }
 
 .back {
-  color: #1a73e8;
-  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--primary);
   font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
 }
 
 .title {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.5rem;
 }
 
 .logout {
   margin-left: auto;
-  padding: 0.4rem 0.9rem;
-  border: 1px solid #5f6368;
-  border-radius: 0.5rem;
-  background: #fff;
-  color: #5f6368;
-  font-size: 0.95rem;
+  min-height: 2.5rem;
+  padding: 0 0.875rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.intro {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.intro p {
+  flex: 1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.add {
+  flex: none;
+  min-height: 2.75rem;
+  padding: 0 1.25rem;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .section {
@@ -37,20 +76,21 @@
 }
 
 .heading {
-  margin: 0 0 0.5rem;
-  font-size: 1rem;
-  color: #5f6368;
+  margin: 0 0 0.5rem 0.25rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
 .rule {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.75rem;
   margin-bottom: 0.5rem;
-  border-radius: 0.75rem;
-  background: #fff;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  background: var(--surface);
 }
 
 .text {
@@ -61,12 +101,15 @@
 
 .delete {
   flex: none;
-  padding: 0.4rem 0.9rem;
-  border: 1px solid #c5221f;
-  border-radius: 0.5rem;
-  background: #fff;
-  color: #c5221f;
-  font-size: 0.95rem;
+  min-height: 2.5rem;
+  padding: 0 0.875rem;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: var(--bad-soft);
+  color: var(--bad);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .delete:disabled {
@@ -74,16 +117,16 @@
 }
 
 .empty {
-  margin: 0;
-  color: #5f6368;
+  margin: 0 0.25rem;
+  color: var(--muted);
   overflow-wrap: anywhere;
 }
 
 .notice {
-  padding: 0.75rem;
   margin-bottom: 1rem;
-  border-radius: 0.75rem;
-  background: #fce8e6;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-small);
+  background: var(--bad-soft);
 }
 
 .notice p {
@@ -92,10 +135,13 @@
 
 .secondary {
   margin-top: 0.5rem;
-  padding: 0.5rem 1rem;
-  border: 1px solid #1a73e8;
-  border-radius: 0.5rem;
-  background: #fff;
-  color: #1a73e8;
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: var(--primary-soft);
+  color: var(--primary);
   font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
 }

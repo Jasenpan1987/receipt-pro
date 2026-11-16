@@ -40,39 +40,42 @@ export function LoginScreen() {
 
   return (
     <main className={styles.screen}>
-      <h1 className={styles.title}>receipt-pro</h1>
-      <form className={styles.form} onSubmit={event => void submit(event)}>
-        <label className={styles.label}>
-          用户名
-          <input
-            className={styles.input}
-            name="username"
-            autoComplete="username"
-            autoCapitalize="none"
-            value={username}
-            onChange={event => setUsername(event.target.value)}
-          />
-        </label>
-        <label className={styles.label}>
-          密码
-          <input
-            className={styles.input}
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={event => setPassword(event.target.value)}
-          />
-        </label>
-        {error && (
-          <p className={styles.error} role="alert">
-            {error}
-          </p>
-        )}
-        <button className={styles.button} type="submit" disabled={busy || !username || !password}>
-          {busy ? "正在登录…" : "登录"}
-        </button>
-      </form>
+      <div className={styles.card}>
+        <h1 className={styles.title}>receipt-pro</h1>
+        <p className={styles.subtitle}>拍小票，出一行字</p>
+        <form className={styles.form} onSubmit={event => void submit(event)}>
+          <label className={styles.label}>
+            用户名
+            <input
+              className={styles.input}
+              name="username"
+              autoComplete="username"
+              autoCapitalize="none"
+              value={username}
+              onChange={event => setUsername(event.target.value)}
+            />
+          </label>
+          <label className={styles.label}>
+            密码
+            <input
+              className={styles.input}
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={event => setPassword(event.target.value)}
+            />
+          </label>
+          {error && (
+            <p className={styles.error} role="alert">
+              {error}
+            </p>
+          )}
+          <button className={styles.button} type="submit" disabled={busy || !username || !password}>
+            {busy ? "正在登录…" : "登录"}
+          </button>
+        </form>
+      </div>
     </main>
   );
 }

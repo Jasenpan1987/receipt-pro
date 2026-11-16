@@ -8,7 +8,10 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   width: "device-width",
-  initialScale: 1
+  initialScale: 1,
+  // The bottom bar reaches the screen edge and pads itself above the iPhone's home indicator.
+  viewportFit: "cover",
+  themeColor: "#faf6f0"
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

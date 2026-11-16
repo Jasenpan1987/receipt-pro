@@ -1,11 +1,11 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  z-index: 20;
+  z-index: 40;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgb(0 0 0 / 70%);
+  background: rgb(43 33 24 / 75%);
 }
 
 /* About three quarters of the screen, so the list stays visible around it. */
@@ -18,7 +18,7 @@
   max-width: 60rem;
   height: 75vh;
   border-radius: 0.75rem;
-  background: #111;
+  background: var(--photo-bg);
 }
 
 .photo {
