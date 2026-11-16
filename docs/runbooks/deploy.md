@@ -8,7 +8,8 @@ Why it is built this way: `docs/records/decisions/ADR-007-deploy-lambda-github-a
 
 ## How a Deploy Happens
 
-Every push to `main` runs the workflow **Deploy** (`.github/workflows/deploy.yml`):
+Every push to `main` runs the workflow **Deploy** (`.github/workflows/deploy.yml`), unless it changes
+only `docs/`, Markdown files, or `.vscode/` (builder, 2026-11-16):
 
 1. **Check and build** (Linux arm64): `oxfmt --check`, `pnpm type`, `pnpm lint`, `pnpm test`, `pnpm build`, `pnpm package:lambda`. A failure here deploys nothing.
 2. **Deploy** (environment `production`, Linux arm64 as well): updates stack `receipt-pro-app` from `deploy/app.yaml`, uploads `dist/lambda.zip` to function `receipt-pro`, then checks that `/login` answers 200.

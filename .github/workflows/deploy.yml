@@ -1,11 +1,17 @@
-# Every push to main is a release (ADR-007): checks and build first, then the deploy job, which
-# alone can reach AWS. Logs of this public repository are public: nothing here prints secrets,
-# the account ID (masked), or the app's address (masked).
+# Every push to main that changes more than docs is a release (ADR-007): checks and build
+# first, then the deploy job, which alone can reach AWS. Logs of this public repository are
+# public: nothing here prints secrets, the account ID (masked), or the app's address (masked).
 name: Deploy
 
 on:
   push:
     branches: [main]
+    # A push that changes only these deploys nothing new (builder, 2026-11-16). A push with any
+    # other file still runs everything.
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - ".vscode/**"
   workflow_dispatch:
 
 permissions:
