@@ -151,6 +151,14 @@ Accepted 2026-11-15. Detail and review: `docs/records/completed-work/mvp-m1.md`.
 - **Completion:** Builder, 2026-11-16: the pages were too plain. Of three HTML mockups (kept out of git), the builder chose B, "warm notebook", as good enough for the MVP, and approved the built pages on a local test server before the push. Colours are CSS variables in `src/app/globals.css`: off-white background, orange primary, round corners. Phone: `receipt-pro` and a "⋯" menu (加规则, 新 session in red, 退出登录) at the top; at the bottom, a large round 拍照 between 相册 and 规则, above the iPhone's home indicator. Computer (from 900 px): header buttons 选照片, 加规则, 规则, 新 session; one row per receipt, a 14.5 rem photo beside the text, a large 复制, prices in bold. The card is `src/client/receipt-card.tsx`; `/rules` got its own 加规则; the 加规则 dialog, photo viewer, and `/login` share the style. Checked in WebKit (iPhone profile) and Chromium on the local production build with screenshots of every page; Mac copy equal to the shown text; no page errors. 176 unit tests (suite total).
 - **Code:** `src/app/globals.css`, `src/app/layout.tsx`, `src/client/receipts-screen.tsx`, `src/client/receipt-card.tsx`, `src/client/receipt-text.tsx`, `src/client/logout.ts`, `src/client/*.module.css`, `src/client/rules-screen.tsx`, `src/client/login-screen.tsx`
 
+### T-022: Item names keep their brand
+
+- **Type:** feature
+- **Status:** done (2026-11-16)
+- **Requirement:** `docs/knowledge/business.md#output`
+- **Completion:** Builder, 2026-11-16: 美心月饼 and 月饼 are different things. Fixed rule 4 in `src/server/ai/system-prompt.ts` now writes the printed brand plus a short Chinese name; the common Chinese brand name if there is one, otherwise as printed; a Chinese brand joined to the name, an English one followed by a space; nothing guessed; no store's own brand. Measured with `PROBE_THINKING=off pnpm exec tsx --env-file=.env.local scripts/probe-deepseek.ts probe-photos/*.HEIC` on the six real photos, two runs: brands appear for most printed ones (Swisse, 李施德林, 鸿运, 利口福, 南翔, 螺霸王, Indomie), spacing consistent. A first draft listed example brands and one was copied onto a receipt (東鵬特飲 → 维他奶); examples are now tied to printed text. Remaining reading noise, as in G-004: 韩龙/韩式 and 粮全其美/轻食 vary run to run, 東鵬 is missed, 柳全 once read as 柳州. Three new prompt tests.
+- **Code:** `src/server/ai/system-prompt.ts`, `src/server/ai/__tests__/system-prompt.test.ts`
+
 ## Later (not in a milestone)
 
 ### T-016: Reset a forgotten password

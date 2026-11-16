@@ -12,8 +12,29 @@ describe("buildSystemPrompt", () => {
     const prompt = buildSystemPrompt(empty);
     expect(prompt).toContain('付款方式只写 "现金" 或 "刷卡"');
     expect(prompt).toContain("商家写大家平时叫的简称");
-    expect(prompt).toContain("每个商品只写一个简短的中文名");
     expect(prompt).toContain("所有中文都用简体字");
+  });
+
+  // Builder, 2026-11-16: 美心月饼 and 月饼 are different things, so items keep their brand
+  // (business.md#output). Store brands add nothing next to the merchant.
+  it("writes an item with its brand, the common Chinese brand name if there is one", () => {
+    const prompt = buildSystemPrompt(empty);
+    expect(prompt).toContain("品牌 + 简短的中文商品名");
+    expect(prompt).toContain("超市自己的牌子");
+    expect(prompt).not.toContain("不带品牌");
+  });
+
+  // A bare list of example brands was copied onto a receipt: 東鵬特飲 came out as 维他奶, one
+  // of the examples (2026-11-16, IMG_8486). Examples name what is printed, and nothing is guessed.
+  it("ties every brand example to what the receipt prints, and forbids guessing", () => {
+    const prompt = buildSystemPrompt(empty);
+    expect(prompt).toContain("小票印 MAXIMS MOONCAKE，写成 美心月饼");
+    expect(prompt).toContain("没印就只写商品名，不要猜");
+    expect(prompt).not.toContain("维他奶");
+  });
+
+  it("says where the space goes between brand and item", () => {
+    expect(buildSystemPrompt(empty)).toContain("中文品牌和商品名连着写，英文品牌后面空一格");
   });
 
   it("uses the saved template once there is one", () => {

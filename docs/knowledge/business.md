@@ -37,7 +37,7 @@ Every field has one way to be written, so outputs never mix styles (builder, 202
 
 - **Payment method:** only `现金` or `刷卡`. Cash is `现金`; anything else (any card, EFTPOS, Apple Pay) is `刷卡`. Loyalty cards printed on the receipt (Flybuys) are not a payment method.
 - **Merchant:** the short name people use, without `Pty Ltd`, branch, or address. A receipt with a Chinese store name uses only the Chinese name (`佳旺超市`, `牛车水`); otherwise the short English name (`Coles`, `Bunnings`).
-- **Items:** one short Chinese name each, no brand, size, weight, count, or unit price; one name only, no alternatives after a slash. The amount is the line's total.
+- **Items:** the brand plus one short Chinese name, when the receipt prints a brand (`美心月饼`, not `月饼`; builder, 2026-11-16, replacing "no brand" of 2026-11-15). The brand's common Chinese name if it has one, otherwise as printed (`Arnott's 饼干`); a Chinese brand joined to the name, an English one followed by a space. No brand that is not printed, and no store's own brand (Coles, Woolworths, Aldi, Kirkland). No size, weight, count, or unit price; one name only, no alternatives after a slash. The amount is the line's total.
 - **All Chinese in simplified characters**, even when the receipt prints traditional ones.
 - **Amounts** as printed, no currency symbol. Not written: loyalty points, total savings, GST, change.
 - A word-list entry or custom instruction overrides the merchant, item, and payment rules. An unknown brand (`V BLUE`, an energy drink) is a word-list entry, not a prompt change.

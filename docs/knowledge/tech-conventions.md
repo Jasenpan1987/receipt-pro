@@ -69,6 +69,7 @@ Reproduce: a minimal `src/app/layout.tsx` and `page.tsx` with `next@16.4.6`,
 ### Rules for the Receipt Prompt (T-017)
 
 - The fixed rules never fix anything the user's template decides: field order, date style, separators. A fixed example ("2026 年 10 月 1 日") beat the builder's template in 6 of 6 readings.
+- Never list bare example values the model could copy onto a receipt. Rule 4 once listed 美心、李锦记、维他奶 as brands with Chinese names, and a receipt printing 東鵬特飲 came out as 维他奶 (2026-11-16). Examples name what is printed and what to write (`小票印 MAXIMS MOONCAKE，写成 美心月饼`), and the rule says not to guess.
 - Exact formatting the model cannot hold, such as several spaces, is made exact in code from the template after reading (`src/server/ai/date-style.ts` for the leading date). If more exact-format rules appear, the general fix is for the model to return fields and code to assemble the line; that changes ADR-002 and is the builder's call.
 
 ### DynamoDB Transactions (T-018)
