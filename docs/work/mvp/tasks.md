@@ -76,7 +76,7 @@ Accepted 2026-11-15. Detail and review: `docs/records/completed-work/mvp-m1.md`.
 ### T-013: Deploy to Lambda
 
 - **Type:** setup
-- **Status:** in-progress
+- **Status:** done (deployed 2026-11-15; redeployed with T-018 to T-022 on 2026-11-16). The mobile-data check of the acceptance was deferred by the builder on 2026-11-17 to T-015
 - **Requirement:** `docs/work/mvp/requirements.md#technical-constraints`
 - **Knowledge:** `docs/knowledge/architecture.md#lambda-compatibility-rules`, `docs/knowledge/tech-conventions.md#aws-account-safety`
 - **Code:** deployment directory chosen in this task
@@ -93,12 +93,13 @@ Accepted 2026-11-15. Detail and review: `docs/records/completed-work/mvp-m1.md`.
 ### T-014: Domain, HTTPS, and home-screen install
 
 - **Type:** setup
-- **Status:** backlog
+- **Status:** ready (the builder chose it next on 2026-11-17)
 - **Requirement:** `docs/work/mvp/requirements.md#non-functional-requirements`
 - **Code:** `src/app/manifest.ts`, app icons, service worker, deployment config
 - **Description:** Point the builder's domain at the deployment with a TLS certificate. Add the web app manifest, icons, and a minimal service worker so the app installs to the home screen and opens full screen.
 - **Acceptance:** On an iPhone and a Xiaomi phone, "add to home screen" installs it; opening it goes straight to the receipt list, full screen.
 - **Blocks:** T-015 · **Blocked by:** T-013, G-005
+- **Notes (2026-11-17, before any building):** Waiting for the builder: the domain or subdomain (G-005; a subdomain such as `receipts.<domain>` recommended, since an apex cannot take a CNAME at most DNS providers), where its DNS is managed, and whether the home-screen install goes in now. Planned shape: a CloudFront distribution in front of the Function URL (no fixed cost; free tier), an ACM certificate in `us-east-1` (CloudFront needs that region) validated by a DNS record, and a CNAME from the subdomain to CloudFront; no Route 53 hosted zone unless the domain is already there (0.50 USD a month). Caching off for pages and API, on for `/_next/static/*`; forward cookies and query strings, not the Host header. Found in the code: `src/proxy.ts` redirects with `request.nextUrl.clone()`, an absolute URL built from the Host header, which behind CloudFront is the Function URL's host; make the redirect relative (`Location: /login`) or pass the viewer host. Rejected: Origin Access Control on the Function URL (it needs the browser to send `x-amz-content-sha256` with every POST body, which breaks photo uploads), and API Gateway (30 s limit; a receipt read can take longer). The deploy role cannot manage CloudFront or ACM yet: the builder updates stack `receipt-pro-bootstrap` once (`docs/runbooks/deploy.md`). Each device logs in once more on the new address (host-only cookie).
 
 ### T-015: M3 verification in the cloud
 
@@ -109,6 +110,7 @@ Accepted 2026-11-15. Detail and review: `docs/records/completed-work/mvp-m1.md`.
 - **Description:** OMT QA reruns the success measures on the deployed app, from the installed home-screen app and the Mac.
 - **Acceptance:** Results in `docs/work/mvp/test-plan.md`; the epic is ready to archive.
 - **Blocked by:** T-014
+- **Notes:** From T-013 (builder, 2026-11-17): the M1 loop on the phone over mobile data, not Wi-Fi.
 - **Notes:** Builder, 2026-11-15: manual edge-case tests on the real phones wait until here, at the end of the MVP. Collected so far: Wi-Fi off mid-upload, then retry (T-003; already covered by browser offline tests in WebKit and Chromium). From T-004 on, tasks are checked on the iPhone only; the Xiaomi checks of those tasks also wait until here (T-003 passed on both phones).
 
 ## Bugs Found in Verification

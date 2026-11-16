@@ -26,7 +26,7 @@
 
 **Tasks:** T-007, T-008, T-009, T-010, T-011
 
-**Status:** T-007 to T-010 done; T-011, the verification, left
+**Status:** T-007 to T-010 done; T-011, the verification, in backlog (the builder chose to deploy first)
 
 **Definition of done**
 
@@ -43,7 +43,7 @@
 
 **Tasks:** T-012, T-013, T-014, T-015
 
-**Status:** T-012 done; T-013 to T-015 left
+**Status:** T-012 and T-013 done (the app runs on Lambda at its Function URL); T-014 next; T-015 left
 
 **Definition of done**
 

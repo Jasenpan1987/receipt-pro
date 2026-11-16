@@ -2,8 +2,8 @@
 
 > **Status:** in progress; M1 accepted 2026-11-15
 > **Goal:** The capture-to-copy loop: phone photo in, one line of plain text out, copied on the computer into Word.
-> **Current milestone:** M2, rules, regenerate, sessions (`docs/work/mvp/milestones.md#m2-rules-regenerate-sessions`); M3's T-012 is done early
-> **Current task:** T-011 (M2 verification, automated by QA); then T-013, which needs the builder (T-001 to T-010, T-012, and T-017 done 2026-11-15)
+> **Current milestone:** M3, login and cloud (`docs/work/mvp/milestones.md#m3-login-and-cloud`); M2's verification T-011 is in backlog
+> **Current task:** T-014, the builder's domain (waiting for the domain and its DNS provider, G-005). Done: T-001 to T-010, T-012, T-013, T-017 to T-022
 
 ## Read First
 
@@ -36,18 +36,16 @@
 
 ## Current State
 
-Requirements v1.1. Fifteen tasks in three milestones, plus bug T-017 and the deferred T-016.
-M1 is accepted (2026-11-15): a photo taken on the phone becomes one line of text in the builder's
-template within a few seconds, appears on the computer without a refresh, and copies into Word
-(`docs/records/completed-work/mvp-m1.md`). M2's features are built (T-007 to T-010): rules in
-plain language, the rules page, regenerate, and new session. Login (T-012) is built and in use
-locally. Table `receipt-pro` and bucket `receipt-pro-photos-jasen` are the one environment
-(ADR-005). Only the personal AWS account is ever used
-(`docs/knowledge/tech-conventions.md#aws-account-safety`). Reading accuracy is measured on six
-photos only (G-004).
+Requirements v1.1. M1 is accepted (`docs/records/completed-work/mvp-m1.md`). M2's features are
+built; its verification T-011 waits in backlog. The app runs on Lambda in the personal account
+at its Function URL, deployed by GitHub Actions on every push to `main` that changes more than
+docs (ADR-007, `docs/runbooks/deploy.md`). Since the first real use (2026-11-16): small
+thumbnails and stable photo URLs (T-019), the photo viewer (T-020), design B on every page
+(T-021), and item names with their brand (T-022). Table `receipt-pro` and bucket
+`receipt-pro-photos-jasen` are the one environment shared by the Mac and Lambda (ADR-005). Reading
+accuracy is measured on six photos only (G-004).
 
 ## Next Action
 
-T-011: QA automates a 100-receipt session and an 8-hour open tab as a `smoke-test-` user, and
-measures G-003. Then T-013 (deploy to Lambda), which needs the builder: a deployment IAM user and
-its key on a new profile, made together (see its notes).
+T-014: put the app on the builder's domain. The builder names the domain and its DNS provider
+first (G-005); the plan and the code issue to fix are in T-014's notes.
