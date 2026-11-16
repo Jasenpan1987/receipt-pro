@@ -56,7 +56,9 @@ jobs:
   deploy:
     name: Deploy
     needs: build
-    runs-on: ubuntu-24.04
+    # Arm too: on 2026-11-16 GitHub failed twice to acquire an `ubuntu-24.04` runner for this job
+    # ("repeatedly failed to be acquired") while the arm build job ran normally.
+    runs-on: ubuntu-24.04-arm
     # Only main may deploy to this environment, and only it holds the secrets and the role.
     environment: production
     permissions:
@@ -70,6 +72,15 @@ jobs:
         with:
           name: lambda
           path: dist
+      # The arm image may not carry the AWS CLI; install AWS's own build if it is missing.
+      - name: AWS CLI
+        run: |
+          if ! command -v aws > /dev/null; then
+            curl -sSfL https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o /tmp/awscli.zip
+            unzip -q /tmp/awscli.zip -d /tmp
+            sudo /tmp/aws/install
+          fi
+          aws --version
       - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
