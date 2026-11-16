@@ -279,7 +279,12 @@ export function ReceiptsScreen() {
   return (
     <div className={styles.screen}>
       <header className={styles.header}>
-        <h1 className={styles.title}>receipt-pro</h1>
+        <h1 className={styles.title}>
+          {/* The home-screen icon beside the name (T-014). Plain <img>: a fixed file, nothing to resize. */}
+          {/* oxlint-disable-next-line nextjs/no-img-element */}
+          <img className={styles.logo} src="/icons/icon-192.png" alt="" width={30} height={30} />
+          receipt-pro
+        </h1>
         {/* The computer: everything in sight, nothing to reach for. */}
         <nav className={styles.deskActions}>
           <label className={styles.ghost} htmlFor="pick-library">

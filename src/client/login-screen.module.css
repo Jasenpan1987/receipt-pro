@@ -18,6 +18,13 @@
   box-shadow: var(--shadow);
 }
 
+.logo {
+  display: block;
+  margin: 0 auto 0.875rem;
+  border-radius: 18px;
+  box-shadow: 0 6px 18px rgb(232 89 12 / 28%);
+}
+
 .title {
   margin: 0;
   font-size: 1.75rem;

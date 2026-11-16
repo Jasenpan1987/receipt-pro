@@ -41,6 +41,9 @@ export function LoginScreen() {
   return (
     <main className={styles.screen}>
       <div className={styles.card}>
+        {/* The home-screen icon above the name (T-014). Plain <img>: a fixed file, nothing to resize. */}
+        {/* oxlint-disable-next-line nextjs/no-img-element */}
+        <img className={styles.logo} src="/icons/icon-512.png" alt="" width={72} height={72} />
         <h1 className={styles.title}>receipt-pro</h1>
         <p className={styles.subtitle}>拍小票，出一行字</p>
         <form className={styles.form} onSubmit={event => void submit(event)}>
