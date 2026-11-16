@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# The app's TLS certificate (T-014): stack `receipt-pro-cert` in us-east-1, because CloudFront only
+# takes certificates from that region. Deployed by .github/workflows/deploy.yml before the app stack
+# (deploy/app.yaml), which receives the certificate's ARN. CloudFormation writes the validation
+# record into the hosted zone itself and waits until the certificate is issued.
+Description: receipt-pro TLS certificate for CloudFront (ACM, us-east-1)
+
+Parameters:
+  DomainName:
+    Type: String
+    Description: The app's address, a name in the hosted zone
+  HostedZoneId:
+    Type: String
+    Description: Route 53 hosted zone that holds DomainName
+
+Resources:
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref DomainName
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostedZoneId
+
+Outputs:
+  CertificateArn:
+    Description: Passed to deploy/app.yaml as CertificateArn
+    Value: !Ref Certificate

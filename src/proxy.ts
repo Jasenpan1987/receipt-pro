@@ -3,8 +3,22 @@ import { isHttps, SESSION_COOKIE, sessionCookie } from "src/server/auth/cookie";
 import { createToken, needsRenewal, verifyToken } from "src/server/auth/session-token";
 import { getConfig } from "src/server/config";
 
-/** Reachable without logging in. */
-const PUBLIC_PATHS = new Set(["/login", "/api/auth/login", "/api/auth/logout"]);
+/**
+ * Reachable without logging in. Browsers fetch the manifest, the home-screen icons, and the
+ * service worker without the login cookie, or refuse a redirect for them (T-014).
+ */
+const PUBLIC_PATHS = new Set([
+  "/login",
+  "/api/auth/login",
+  "/api/auth/logout",
+  "/manifest.webmanifest",
+  "/sw.js"
+]);
+const PUBLIC_PREFIXES = ["/icons/"];
+
+function isPublic(path: string): boolean {
+  return PUBLIC_PATHS.has(path) || PUBLIC_PREFIXES.some(prefix => path.startsWith(prefix));
+}
 
 /**
  * Every page and API call needs the login cookie (T-012): pages go to /login, API calls get 401.
@@ -13,7 +27,7 @@ const PUBLIC_PATHS = new Set(["/login", "/api/auth/login", "/api/auth/logout"]);
  */
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
-  if (PUBLIC_PATHS.has(path)) {
+  if (isPublic(path)) {
     return NextResponse.next();
   }
   const now = Date.now();

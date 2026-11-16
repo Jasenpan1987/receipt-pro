@@ -70,6 +70,11 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    env:
+      # The app's own address and its hosted zone (T-014), for both stacks. The bootstrap stack's
+      # AppDomainName and HostedZoneId must match: the deploy role may only change these records.
+      APP_DOMAIN: receipts.jasenpan.com
+      HOSTED_ZONE_ID: Z3K1R8HA8U98WG
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -94,17 +99,37 @@ jobs:
           aws-region: ap-southeast-2
           mask-aws-account-id: true
 
-      # A first deploy that failed leaves the stack in ROLLBACK_COMPLETE, which cannot be
-      # updated, only deleted. It holds nothing: the data lives outside this stack (ADR-005).
+      # A first deploy that failed leaves a stack in ROLLBACK_COMPLETE, which cannot be updated,
+      # only deleted. Such a stack holds nothing: its creation was rolled back, and the data lives
+      # outside both stacks (ADR-005).
       - name: Clear a failed first deploy
         run: |
-          status=$(aws cloudformation describe-stacks --stack-name receipt-pro-app \
-            --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo NONE)
-          echo "Stack status: $status"
-          if [ "$status" = ROLLBACK_COMPLETE ]; then
-            aws cloudformation delete-stack --stack-name receipt-pro-app
-            aws cloudformation wait stack-delete-complete --stack-name receipt-pro-app
-          fi
+          clear_failed() { # <stack> <region>
+            status=$(aws cloudformation describe-stacks --region "$2" --stack-name "$1" \
+              --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo NONE)
+            echo "$1: $status"
+            if [ "$status" = ROLLBACK_COMPLETE ]; then
+              aws cloudformation delete-stack --region "$2" --stack-name "$1"
+              aws cloudformation wait stack-delete-complete --region "$2" --stack-name "$1"
+            fi
+          }
+          clear_failed receipt-pro-cert us-east-1
+          clear_failed receipt-pro-app ap-southeast-2
+
+      # CloudFront only takes certificates from us-east-1 (deploy/cert.yaml). The first deploy waits
+      # here until the certificate is issued, usually a few minutes.
+      - name: Certificate
+        run: |
+          aws cloudformation deploy --region us-east-1 \
+            --stack-name receipt-pro-cert \
+            --template-file deploy/cert.yaml \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides "DomainName=$APP_DOMAIN" "HostedZoneId=$HOSTED_ZONE_ID" \
+            > /dev/null
+          arn=$(aws cloudformation describe-stacks --region us-east-1 --stack-name receipt-pro-cert \
+            --query "Stacks[0].Outputs[?OutputKey=='CertificateArn'].OutputValue" --output text)
+          echo "CERTIFICATE_ARN=$arn" >> "$GITHUB_ENV"
+          echo "Certificate up to date."
 
       - name: Stack
         env:
@@ -117,15 +142,20 @@ jobs:
             --capabilities CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset \
             --parameter-overrides "DeepSeekApiKey=$DEEPSEEK_API_KEY" "SessionSecret=$SESSION_SECRET" \
+              "DomainName=$APP_DOMAIN" "HostedZoneId=$HOSTED_ZONE_ID" "CertificateArn=$CERTIFICATE_ARN" \
             > /dev/null
           echo "Stack up to date."
 
       - name: Stack events after a failure
         if: failure()
         run: |
-          aws cloudformation describe-stack-events --stack-name receipt-pro-app --max-items 15 \
-            --query "StackEvents[].[LogicalResourceId,ResourceStatus,ResourceStatusReason]" \
-            --output text || true
+          for target in receipt-pro-cert:us-east-1 receipt-pro-app:ap-southeast-2; do
+            echo "== ${target%%:*}"
+            aws cloudformation describe-stack-events --region "${target#*:}" \
+              --stack-name "${target%%:*}" --max-items 15 \
+              --query "StackEvents[].[LogicalResourceId,ResourceStatus,ResourceStatusReason]" \
+              --output text || true
+          done
 
       - name: Code
         run: |
@@ -139,11 +169,15 @@ jobs:
           url=$(aws cloudformation describe-stacks --stack-name receipt-pro-app \
             --query "Stacks[0].Outputs[?OutputKey=='Url'].OutputValue" --output text)
           echo "::add-mask::$url"
-          status=000
-          for attempt in 1 2 3 4 5 6; do
-            status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "${url}login" || true)
-            [ "$status" = 200 ] && break
-            sleep 5
-          done
-          echo "GET /login: $status"
-          [ "$status" = 200 ]
+          check() { # <name> <url>: GET /login answers 200 within a minute
+            status=000
+            for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+              status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "${2}login" || true)
+              [ "$status" = 200 ] && break
+              sleep 5
+            done
+            echo "$1 GET /login: $status"
+            [ "$status" = 200 ]
+          }
+          check "Function URL" "$url"
+          check "https://$APP_DOMAIN" "https://$APP_DOMAIN/"

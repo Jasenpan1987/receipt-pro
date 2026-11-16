@@ -2,7 +2,7 @@
 
 > **Purpose:** How receipt-pro is built: components, data model, request flows, and the rules that keep it deployable to Lambda.
 > **Status:** Current
-> **Verified against:** Code at `c58c302` (M1 boundary review), 2026-11-15; builder decisions and DeepSeek docs, 2026-11-15
+> **Verified against:** Code at `c58c302` (M1 boundary review), 2026-11-15; builder decisions and DeepSeek docs, 2026-11-15; Deployment section against `deploy/` (T-014), 2026-11-17
 > **Primary code:** `src/app/`, `src/server/`
 
 ## Summary
@@ -122,11 +122,29 @@ rules page.
 ## Deployment
 
 Every push to `main` deploys through GitHub Actions (ADR-007, `docs/runbooks/deploy.md`). The
-function runs the Next.js standalone server behind the AWS Lambda Web Adapter and is reached at a
-public Function URL over HTTPS. CloudFormation stack `receipt-pro-app` (`deploy/app.yaml`) holds
-the function, its role, the Function URL, and the log group; stack `receipt-pro-bootstrap`
-(`deploy/bootstrap.yaml`) holds the GitHub OIDC provider, the deploy role, and the boundary. On
-Lambda the app uses the function role's credentials; the account check still runs.
+function runs the Next.js standalone server behind the AWS Lambda Web Adapter. The app's address
+is `https://receipts.jasenpan.com` (T-014): Route 53 records in the builder's hosted zone
+`jasenpan.com` point to a CloudFront distribution, which forwards every request to the function's
+public Function URL. CloudFront caches only `/_next/static/*`; pages and API calls pass through
+with their cookies and query strings, but not the Host header, which the Function URL needs to be
+its own. The Function URL itself still answers and still needs the login.
+
+Three CloudFormation stacks:
+
+- `receipt-pro-app` (`deploy/app.yaml`, ap-southeast-2): the function, its role, the Function URL,
+  the log group, the distribution, and the two DNS records (A and AAAA).
+- `receipt-pro-cert` (`deploy/cert.yaml`, us-east-1, because CloudFront takes certificates only
+  from there): the ACM certificate, validated by a DNS record CloudFormation writes itself.
+- `receipt-pro-bootstrap` (`deploy/bootstrap.yaml`, uploaded by the builder): the GitHub OIDC
+  provider, the deploy role, and the boundary. The deploy role may change only the app's own
+  records in the zone; `asr`, `tts`, and every other name stay out of its reach.
+
+On Lambda the app uses the function role's credentials; the account check still runs.
+
+Home-screen install (T-014): `src/app/manifest.ts` (`display: standalone`, start on `/`), the icons
+in `public/icons/` (drawn in `icon.svg`), and `public/sw.js`, a service worker that caches nothing
+and only shows a "no network" page when a page cannot load. The manifest, the icons, and the
+service worker need no login (`src/proxy.ts`).
 
 ## Lambda Compatibility Rules
 
@@ -136,3 +154,4 @@ The local version must deploy to Lambda without a rewrite:
 - No WebSockets, server-sent events, or other long-lived connections.
 - No writes to the local file system outside `/tmp`.
 - Request bodies stay well under 6 MB, the Lambda synchronous payload limit. Compressed photos are far below it.
+- CloudFront waits at most 60 s for an answer (T-014). A request that can take longer must not need its response: the receipt read takes up to about 90 s, and the phone learns its result from the session instead.

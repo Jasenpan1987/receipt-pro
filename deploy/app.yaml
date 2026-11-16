@@ -4,7 +4,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 # photo bucket are not in this stack: they are the one environment shared with the Mac (ADR-005).
 # The function's code is uploaded by the workflow after this stack; the placeholder below only
 # exists so the function can be created.
-Description: receipt-pro app (Lambda, Function URL, role, logs)
+Description: receipt-pro app (Lambda, Function URL, role, logs, CloudFront, DNS records)
 
 Parameters:
   DeepSeekApiKey:
@@ -25,6 +25,17 @@ Parameters:
   AdapterLayerVersion:
     Type: Number
     Default: 30
+  # The app's own address (T-014). The workflow passes all three; the certificate comes from
+  # stack `receipt-pro-cert` in us-east-1 (deploy/cert.yaml).
+  DomainName:
+    Type: String
+    Description: The app's address, a name in the hosted zone
+  HostedZoneId:
+    Type: String
+    Description: Route 53 hosted zone that holds DomainName
+  CertificateArn:
+    Type: String
+    Description: ACM certificate for DomainName, in us-east-1
 
 Resources:
   LogGroup:
@@ -135,7 +146,86 @@ Resources:
       Principal: "*"
       InvokedViaFunctionUrl: true
 
+  # The app's own address in front of the Function URL (T-014). The Function URL stays public:
+  # Origin Access Control would need the browser to sign every POST body (x-amz-content-sha256),
+  # which photo uploads do not.
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: receipt-pro
+        Aliases:
+          - !Ref DomainName
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        # Australia is only in PriceClass_All.
+        PriceClass: PriceClass_All
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CertificateArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        Origins:
+          - Id: function
+            # https://<id>.lambda-url.<region>.on.aws/ -> <id>.lambda-url.<region>.on.aws
+            DomainName: !Select [2, !Split ["/", !GetAtt FunctionUrl.FunctionUrl]]
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
+              # The most CloudFront allows without a quota request. A receipt read can take about
+              # 90 s; the phone ignores that response and reads the result from the session, and
+              # CloudFront does not retry a POST.
+              OriginReadTimeout: 60
+        DefaultCacheBehavior:
+          TargetOriginId: function
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          # Managed policy CachingDisabled: pages and API answers are per user.
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          # Managed policy AllViewerExceptHostHeader: cookies, query strings, and headers reach the
+          # app, but not the Host header; the Function URL only answers to its own host.
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
+        CacheBehaviors:
+          # Build files: their names change with their content, and they need no login.
+          - PathPattern: /_next/static/*
+            TargetOriginId: function
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD]
+            CachedMethods: [GET, HEAD]
+            Compress: true
+            # Managed policy CachingOptimized.
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+
+  # Z2FDTNDATAQYW2 is the fixed hosted zone of every CloudFront alias target.
+  DomainRecordIpv4:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref DomainName
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt Distribution.DomainName
+        HostedZoneId: Z2FDTNDATAQYW2
+        EvaluateTargetHealth: false
+
+  DomainRecordIpv6:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref DomainName
+      Type: AAAA
+      AliasTarget:
+        DNSName: !GetAtt Distribution.DomainName
+        HostedZoneId: Z2FDTNDATAQYW2
+        EvaluateTargetHealth: false
+
 Outputs:
   Url:
-    Description: The app's HTTPS address
+    Description: The Function URL, which CloudFront forwards to
     Value: !GetAtt FunctionUrl.FunctionUrl
+  DomainUrl:
+    Description: The app's own address
+    Value: !Sub https://${DomainName}/
